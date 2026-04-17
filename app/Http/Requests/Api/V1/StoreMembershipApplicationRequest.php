@@ -42,8 +42,8 @@ class StoreMembershipApplicationRequest extends FormRequest
             'desired_committee_level'  => ['nullable', 'string', 'max:100'],
             'desired_committee_id'     => ['nullable', 'integer'],
             'motivation'               => ['nullable', 'string', 'max:2000'],
-            // Photo: optional, validated strictly
-            'photo'                    => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
+            // Photo: optional, validated strictly (max 5MB)
+            'photo'                    => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
         ];
     }
 

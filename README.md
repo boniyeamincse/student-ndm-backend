@@ -4,9 +4,9 @@ Laravel-based REST API for NDM membership, committee operations, notices, posts,
 
 ## Base Information
 
-- Base URL (local): `http://127.0.0.1:8000/api`
+- Base URL (local): `http://127.0.0.1:8001/api`
 - API version prefix: `/v1`
-- Full versioned base: `http://127.0.0.1:8000/api/v1`
+- Full versioned base: `http://127.0.0.1:8001/api/v1`
 - Auth mechanism: Laravel Sanctum bearer token (`auth:sanctum`)
 - Default response format: JSON
 
@@ -34,13 +34,13 @@ php artisan migrate --seed
 4. Start server:
 
 ```bash
-php artisan serve
+php artisan serve --port=8001
 ```
 
 5. Verify API health:
 
 ```bash
-curl -X GET http://127.0.0.1:8000/api/health
+curl -X GET http://127.0.0.1:8001/api/health
 ```
 
 ## Authentication
@@ -52,13 +52,13 @@ curl -X GET http://127.0.0.1:8000/api/health
 Example:
 
 ```bash
-curl -X POST http://127.0.0.1:8000/api/v1/auth/login \
-	-H "Accept: application/json" \
-	-H "Content-Type: application/json" \
-	-d '{
-		"email": "admin@example.com",
-		"password": "Password@123"
-	}'
+curl -X POST http://127.0.0.1:8001/api/v1/auth/login \
+        -H "Accept: application/json" \
+        -H "Content-Type: application/json" \
+        -d '{
+                "login": "admin@example.com",
+                "password": "Password@123"
+        }'
 ```
 
 Use the returned token as:

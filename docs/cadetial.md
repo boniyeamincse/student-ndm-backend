@@ -7,7 +7,7 @@ This document contains the default super admin credentials for the NDM project.
 
 ## Credentials
 
-- **URL**: `http://localhost:8000/login` (or equivalent backend URL)
+- **URL**: `http://localhost:8001/login` (or equivalent backend URL)
 - **Email**: `admin@studentmovment-ndm.com`
 - **Password**: `password123@ChangeMe`
 - **Role**: `superadmin`

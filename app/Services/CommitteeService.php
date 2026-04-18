@@ -33,6 +33,12 @@ class CommitteeService
             }
         }
 
+        if (array_key_exists('pending_approval', $filters) && $filters['pending_approval'] !== null && $filters['pending_approval'] !== '') {
+            $isPending = filter_var($filters['pending_approval'], FILTER_VALIDATE_BOOLEAN);
+            $query->when($isPending, fn ($q) => $q->whereNull('approved_by'))
+                ->when(! $isPending, fn ($q) => $q->whereNotNull('approved_by'));
+        }
+
         if (array_key_exists('is_current', $filters) && $filters['is_current'] !== null) {
             $query->where('is_current', (bool) $filters['is_current']);
         }

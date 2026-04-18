@@ -4,11 +4,14 @@ namespace App\Http\Requests;
 
 use App\Enum\AssignmentStatus;
 use App\Enum\AssignmentType;
+use App\Http\Requests\Concerns\NormalizesEmptyValues;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rules\Enum;
 
 class StoreCommitteeMemberAssignmentRequest extends FormRequest
 {
+    use NormalizesEmptyValues;
+
     public function authorize(): bool
     {
         return true;
@@ -16,6 +19,17 @@ class StoreCommitteeMemberAssignmentRequest extends FormRequest
 
     public function prepareForValidation(): void
     {
+        $this->normalizeEmptyToNull([
+            'position_id',
+            'appointed_by',
+            'approved_by',
+            'assigned_at',
+            'approved_at',
+            'start_date',
+            'end_date',
+            'note',
+        ]);
+
         if (! $this->has('assignment_type')) {
             $this->merge(['assignment_type' => AssignmentType::GeneralMember->value]);
         }

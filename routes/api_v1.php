@@ -10,6 +10,7 @@ use App\Http\Controllers\AdminPostController;
 use App\Http\Controllers\AdminPositionController;
 use App\Http\Controllers\AdminNoticeController;
 use App\Http\Controllers\AdminProfileUpdateRequestController;
+use App\Http\Controllers\AdminUserLookupController;
 use App\Http\Controllers\AdminMenuController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\MemberNoticeController;
@@ -22,6 +23,9 @@ use App\Http\Controllers\Api\V1\AdminMembershipApplicationController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\MembershipApplicationController;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Api\V1\AdminRoleController;
+use App\Http\Controllers\Api\V1\AdminPermissionController;
+use App\Http\Controllers\Api\V1\AdminUserRoleController;
 
 /*
 |--------------------------------------------------------------------------
@@ -258,6 +262,26 @@ Route::prefix('v1')->group(function () {
             Route::patch('/{id}/approve', [AdminProfileUpdateRequestController::class, 'approve']);
             Route::patch('/{id}/reject', [AdminProfileUpdateRequestController::class, 'reject']);
         });
+
+        // ── System: Roles & Permissions Management ──────────────────────
+        Route::prefix('roles')->group(function () {
+            Route::get('/', [AdminRoleController::class, 'index']);
+            Route::post('/', [AdminRoleController::class, 'store']);
+            Route::get('/summary', [AdminRoleController::class, 'summary']);
+            Route::get('/{role}', [AdminRoleController::class, 'show']);
+            Route::put('/{role}', [AdminRoleController::class, 'update']);
+            Route::patch('/{role}/permissions', [AdminRoleController::class, 'syncPermissions']);
+            Route::delete('/{role}', [AdminRoleController::class, 'destroy']);
+        });
+
+        Route::prefix('permissions')->group(function () {
+            Route::get('/', [AdminPermissionController::class, 'index']);
+            Route::get('/grouped', [AdminPermissionController::class, 'grouped']);
+            Route::get('/{permission}', [AdminPermissionController::class, 'show']);
+        });
+
+        Route::patch('/users/{user}/roles', [AdminUserRoleController::class, 'syncRoles']);
+        Route::get('/users/lookup', [AdminUserLookupController::class, 'index']);
 
     });
 

@@ -35,7 +35,7 @@ class PositionService
         }
 
         foreach (['is_active', 'is_leadership'] as $field) {
-            if (array_key_exists($field, $filters) && $filters[$field] !== null) {
+            if (array_key_exists($field, $filters) && $filters[$field] !== null && $filters[$field] !== '') {
                 $query->where($field, (bool) $filters[$field]);
             }
         }

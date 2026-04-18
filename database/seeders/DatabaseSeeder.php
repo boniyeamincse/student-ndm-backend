@@ -20,6 +20,8 @@ class DatabaseSeeder extends Seeder
             CommitteeTypeSeeder::class,
             PositionSeeder::class,
             PostCategorySeeder::class,
+            GeographySeeder::class,
+            DivisionCommitteeSeeder::class,
             SuperAdminSeeder::class,
         ]);
     }

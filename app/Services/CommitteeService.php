@@ -37,9 +37,9 @@ class CommitteeService
             $query->where('is_current', (bool) $filters['is_current']);
         }
 
-        foreach (['division_name', 'district_name', 'upazila_name', 'union_name'] as $locationField) {
+        foreach (['division_id', 'district_id', 'upazila_id', 'union_id'] as $locationField) {
             if (! empty($filters[$locationField])) {
-                $query->where($locationField, 'like', '%'.$filters[$locationField].'%');
+                $query->where($locationField, $filters[$locationField]);
             }
         }
 
@@ -63,17 +63,20 @@ class CommitteeService
             $type = CommitteeType::findOrFail($data['committee_type_id']);
             $parent = ! empty($data['parent_id']) ? Committee::findOrFail($data['parent_id']) : null;
 
+            $this->validateCreationOrder($type);
             $this->validateParentChain($type, $parent);
             $this->validateLocationByType($type, $data);
             $this->validateDuplicateScope($data);
 
             $committeeNo = $this->generateCommitteeNo();
             $slug = $this->ensureUniqueSlug($data['slug'] ?? $data['name']);
+            $code = $this->generateCommitteeCode($type);
 
             $committee = Committee::create([
                 ...$data,
                 'committee_no' => $committeeNo,
                 'slug' => $slug,
+                'code' => $code,
                 'created_by' => $actorId,
                 'is_current' => $data['is_current'] ?? CommitteeStatus::from($data['status'])->isCurrentDefault(),
             ]);
@@ -115,6 +118,8 @@ class CommitteeService
             $type = CommitteeType::findOrFail($data['committee_type_id']);
             $parent = ! empty($data['parent_id']) ? Committee::findOrFail($data['parent_id']) : null;
 
+            $this->validateCreationOrder($type);
+
             if ($parent && $parent->id === $committee->id) {
                 throw ValidationException::withMessages([
                     'parent_id' => ['A committee cannot be its own parent.'],
@@ -138,6 +143,10 @@ class CommitteeService
                     $actorId,
                     'Status changed during committee update.'
                 );
+            }
+
+            if (empty($committee->code)) {
+                $data['code'] = $this->generateCommitteeCode($type);
             }
 
             $data['updated_by'] = $actorId;
@@ -252,11 +261,11 @@ class CommitteeService
 
         if ($includeDivision) {
             $result['counts_by_division'] = Committee::query()
-                ->whereNotNull('division_name')
-                ->selectRaw('division_name, COUNT(*) as count')
-                ->groupBy('division_name')
+                ->whereNotNull('division_id')
+                ->selectRaw('division_id, COUNT(*) as count')
+                ->groupBy('division_id')
                 ->orderByDesc('count')
-                ->pluck('count', 'division_name')
+                ->pluck('count', 'division_id')
                 ->toArray();
         }
 
@@ -386,14 +395,65 @@ class CommitteeService
         }
     }
 
+    private function validateCreationOrder(CommitteeType $type): void
+    {
+        if ((int) $type->hierarchy_order <= 1) {
+            return;
+        }
+
+        $parentType = CommitteeType::query()
+            ->where('hierarchy_order', (int) $type->hierarchy_order - 1)
+            ->first();
+
+        if (! $parentType) {
+            throw ValidationException::withMessages([
+                'committee_type_id' => ['Parent committee type is not configured for this hierarchy order.'],
+            ]);
+        }
+
+        $parentExists = Committee::query()
+            ->where('committee_type_id', $parentType->id)
+            ->whereNull('deleted_at')
+            ->exists();
+
+        if (! $parentExists) {
+            throw ValidationException::withMessages([
+                'committee_type_id' => [sprintf('Create %s committee first before creating %s committee.', $parentType->name, $type->name)],
+            ]);
+        }
+    }
+
+    private function generateCommitteeCode(CommitteeType $type): string
+    {
+        $prefix = strtoupper(trim((string) ($type->code ?: Str::upper(Str::substr($type->name, 0, 3)))));
+
+        $existingCodes = Committee::query()
+            ->withTrashed()
+            ->where('committee_type_id', $type->id)
+            ->whereNotNull('code')
+            ->where('code', 'like', $prefix.'-%')
+            ->pluck('code');
+
+        $maxSerial = 0;
+        foreach ($existingCodes as $code) {
+            if (preg_match('/^'.preg_quote($prefix, '/').'-([0-9]+)$/', (string) $code, $matches)) {
+                $maxSerial = max($maxSerial, (int) $matches[1]);
+            }
+        }
+
+        $nextSerial = $maxSerial + 1;
+
+        return sprintf('%s-%02d', $prefix, $nextSerial);
+    }
+
     private function validateLocationByType(CommitteeType $type, array $data): void
     {
         $requiredByOrder = [
             1 => [],
-            2 => ['division_name'],
-            3 => ['division_name', 'district_name'],
-            4 => ['division_name', 'district_name', 'upazila_name'],
-            5 => ['division_name', 'district_name', 'upazila_name', 'union_name'],
+            2 => ['division_id'],
+            3 => ['division_id', 'district_id'],
+            4 => ['division_id', 'district_id', 'upazila_id'],
+            5 => ['division_id', 'district_id', 'upazila_id', 'union_id'],
         ];
 
         $requiredFields = $requiredByOrder[$type->hierarchy_order] ?? [];
@@ -412,10 +472,10 @@ class CommitteeService
         $query = Committee::query()
             ->where('committee_type_id', $data['committee_type_id'])
             ->whereRaw('LOWER(name) = ?', [Str::lower($data['name'])])
-            ->where('division_name', $data['division_name'] ?? null)
-            ->where('district_name', $data['district_name'] ?? null)
-            ->where('upazila_name', $data['upazila_name'] ?? null)
-            ->where('union_name', $data['union_name'] ?? null)
+            ->where('division_id', $data['division_id'] ?? null)
+            ->where('district_id', $data['district_id'] ?? null)
+            ->where('upazila_id', $data['upazila_id'] ?? null)
+            ->where('union_id', $data['union_id'] ?? null)
             ->whereNull('deleted_at');
 
         if ($ignoreCommitteeId) {

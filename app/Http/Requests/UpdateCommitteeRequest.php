@@ -15,6 +15,33 @@ class UpdateCommitteeRequest extends FormRequest
 
     public function prepareForValidation(): void
     {
+        $nullableFields = [
+            'parent_id',
+            'code',
+            'division_id',
+            'district_id',
+            'upazila_id',
+            'union_id',
+            'address_line',
+            'office_phone',
+            'office_email',
+            'description',
+            'start_date',
+            'end_date',
+            'formed_by',
+            'approved_by',
+            'formed_at',
+            'approved_at',
+            'notes',
+            'status',
+        ];
+
+        foreach ($nullableFields as $field) {
+            if ($this->has($field) && trim((string) $this->input($field)) === '') {
+                $this->merge([$field => null]);
+            }
+        }
+
         if ($this->filled('name') && ! $this->filled('slug')) {
             $this->merge(['slug' => str($this->input('name'))->slug()->toString()]);
         }
@@ -28,10 +55,10 @@ class UpdateCommitteeRequest extends FormRequest
             'committee_type_id' => ['required', 'integer', 'exists:committee_types,id'],
             'parent_id' => ['nullable', 'integer', 'exists:committees,id'],
             'code' => ['nullable', 'string', 'max:30'],
-            'division_name' => ['nullable', 'string', 'max:100'],
-            'district_name' => ['nullable', 'string', 'max:100'],
-            'upazila_name' => ['nullable', 'string', 'max:100'],
-            'union_name' => ['nullable', 'string', 'max:100'],
+            'division_id' => ['nullable', 'integer', 'exists:divisions,id'],
+            'district_id' => ['nullable', 'integer', 'exists:districts,id'],
+            'upazila_id' => ['nullable', 'integer', 'exists:upazilas,id'],
+            'union_id' => ['nullable', 'integer', 'exists:unions,id'],
             'address_line' => ['nullable', 'string', 'max:255'],
             'office_phone' => ['nullable', 'string', 'max:30'],
             'office_email' => ['nullable', 'email', 'max:150'],

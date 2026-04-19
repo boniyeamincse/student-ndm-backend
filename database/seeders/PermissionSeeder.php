@@ -20,7 +20,12 @@ class PermissionSeeder extends Seeder
 
         // Role management
         'role.view',
+        'role.create',
+        'role.update',
+        'role.delete',
         'role.assign',
+        'permission.view',
+        'permission.assign',
 
         // Profile
         'profile.view',

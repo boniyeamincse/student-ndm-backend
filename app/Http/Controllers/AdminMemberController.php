@@ -125,6 +125,26 @@ class AdminMemberController extends Controller
     }
 
     /**
+     * PATCH /api/v1/admin/members/{member}/promote
+     * Set a member as promoted.
+     */
+    public function promote(int $member): JsonResponse
+    {
+        $memberModel = Member::findOrFail($member);
+        $this->authorize('update', $memberModel);
+
+        $memberModel->update([
+            'is_promoted' => true,
+            'promoted_at' => now(),
+        ]);
+
+        return $this->success(
+            new MemberDetailResource($memberModel),
+            'Member promoted successfully.'
+        );
+    }
+
+    /**
      * PUT /api/v1/admin/members/{member}/restore
      * Restore a soft-deleted member.
      */

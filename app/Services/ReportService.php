@@ -36,11 +36,11 @@ class ReportService
         if ($status = $filters['status'] ?? null) {
             $query->where('status', $status);
         }
-        if ($division = $filters['division_name'] ?? null) {
-            $query->where('division_name', 'like', "%{$division}%");
+        if ($division = $filters['division_id'] ?? null) {
+            $query->where('division_id', $division);
         }
-        if ($district = $filters['district_name'] ?? null) {
-            $query->where('district_name', 'like', "%{$district}%");
+        if ($district = $filters['district_id'] ?? null) {
+            $query->where('district_id', $district);
         }
         if ($source = $filters['source'] ?? null) {
             $query->where('source', $source);
@@ -72,13 +72,13 @@ class ReportService
 
         // Groups
         $groups = [
-            'by_division' => $this->groupByCol($query, 'division_name'),
-            'by_district' => $this->groupByCol($query, 'district_name'),
+            'by_division' => $this->groupByCol($query, 'division_id'),
+            'by_district' => $this->groupByCol($query, 'district_id'),
             'by_status'   => $this->groupByCol($query, 'status'),
         ];
 
         // Paginated items
-        $sortBy  = in_array($filters['sort_by'] ?? '', ['created_at', 'status', 'division_name', 'district_name'])
+        $sortBy  = in_array($filters['sort_by'] ?? '', ['created_at', 'status', 'division_id', 'district_id'])
             ? $filters['sort_by']
             : 'created_at';
         $sortDir = ($filters['sort_dir'] ?? 'desc') === 'asc' ? 'asc' : 'desc';
@@ -86,7 +86,7 @@ class ReportService
 
         $paginator = $query
             ->orderBy($sortBy, $sortDir)
-            ->paginate($perPage, ['id', 'application_no', 'full_name', 'status', 'division_name', 'district_name', 'created_at']);
+            ->paginate($perPage, ['id', 'application_no', 'full_name', 'status', 'division_id', 'district_id', 'created_at']);
 
         return [
             'filters' => $filters,
@@ -109,17 +109,17 @@ class ReportService
         if ($gender = $filters['gender'] ?? null) {
             $query->where('gender', $gender);
         }
-        if ($division = $filters['division_name'] ?? null) {
-            $query->where('division_name', 'like', "%{$division}%");
+        if ($division = $filters['division_id'] ?? null) {
+            $query->where('division_id', $division);
         }
-        if ($district = $filters['district_name'] ?? null) {
-            $query->where('district_name', 'like', "%{$district}%");
+        if ($district = $filters['district_id'] ?? null) {
+            $query->where('district_id', $district);
         }
-        if ($upazila = $filters['upazila_name'] ?? null) {
-            $query->where('upazila_name', 'like', "%{$upazila}%");
+        if ($upazila = $filters['upazila_id'] ?? null) {
+            $query->where('upazila_id', $upazila);
         }
-        if ($union = $filters['union_name'] ?? null) {
-            $query->where('union_name', 'like', "%{$union}%");
+        if ($union = $filters['union_id'] ?? null) {
+            $query->where('union_id', $union);
         }
         if ($inst = $filters['educational_institution'] ?? null) {
             $query->where('educational_institution', 'like', "%{$inst}%");
@@ -144,8 +144,8 @@ class ReportService
         ];
 
         $groups = [
-            'by_division'    => $this->groupByCol($query, 'division_name'),
-            'by_district'    => $this->groupByCol($query, 'district_name'),
+            'by_division'    => $this->groupByCol($query, 'division_id'),
+            'by_district'    => $this->groupByCol($query, 'district_id'),
             'by_gender'      => $this->groupByCol($query, 'gender'),
             'by_status'      => $this->groupByCol($query, 'status'),
             'by_institution' => $this->groupByCol($query, 'educational_institution'),
@@ -159,7 +159,7 @@ class ReportService
 
         $paginator = $query
             ->orderBy($sortBy, $sortDir)
-            ->paginate($perPage, ['id', 'member_no', 'full_name', 'gender', 'status', 'division_name', 'district_name', 'joined_at', 'created_at']);
+            ->paginate($perPage, ['id', 'member_no', 'full_name', 'gender', 'status', 'division_id', 'district_id', 'joined_at', 'created_at']);
 
         return [
             'filters' => $filters,
@@ -187,11 +187,11 @@ class ReportService
         if (isset($filters['is_current'])) {
             $query->where('c.is_current', filter_var($filters['is_current'], FILTER_VALIDATE_BOOLEAN));
         }
-        if ($division = $filters['division_name'] ?? null) {
-            $query->where('c.division_name', 'like', "%{$division}%");
+        if ($division = $filters['division_id'] ?? null) {
+            $query->where('c.division_id', $division);
         }
-        if ($district = $filters['district_name'] ?? null) {
-            $query->where('c.district_name', 'like', "%{$district}%");
+        if ($district = $filters['district_id'] ?? null) {
+            $query->where('c.district_id', $district);
         }
         if ($parent = $filters['parent_id'] ?? null) {
             $query->where('c.parent_id', $parent);
@@ -213,8 +213,8 @@ class ReportService
         $groups = [
             'by_type'     => $this->groupByCol($query, 'ct.name'),
             'by_status'   => $this->groupByCol($query, 'c.status'),
-            'by_division' => $this->groupByCol($query, 'c.division_name'),
-            'by_district' => $this->groupByCol($query, 'c.district_name'),
+            'by_division' => $this->groupByCol($query, 'c.division_id'),
+            'by_district' => $this->groupByCol($query, 'c.district_id'),
         ];
 
         $sortBy  = in_array($filters['sort_by'] ?? '', ['created_at', 'status', 'name'])
@@ -225,7 +225,7 @@ class ReportService
 
         $paginator = $query
             ->orderBy($sortBy, $sortDir)
-            ->paginate($perPage, ['c.id', 'c.committee_no', 'c.name', 'ct.name as committee_type', 'c.status', 'c.is_current', 'c.division_name', 'c.district_name', 'c.created_at']);
+            ->paginate($perPage, ['c.id', 'c.committee_no', 'c.name', 'ct.name as committee_type', 'c.status', 'c.is_current', 'c.division_id', 'c.district_id', 'c.created_at']);
 
         return [
             'filters' => $filters,

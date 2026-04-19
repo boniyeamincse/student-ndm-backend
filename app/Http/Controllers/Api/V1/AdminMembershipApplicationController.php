@@ -50,10 +50,10 @@ class AdminMembershipApplicationController extends Controller
 
         // Filter by district / division
         if ($district = $request->query('district')) {
-            $query->where('district_name', $district);
+            $query->where('district_id', $district);
         }
         if ($division = $request->query('division')) {
-            $query->where('division_name', $division);
+            $query->where('division_id', $division);
         }
 
         // Filter by date range (created_at)

@@ -13,6 +13,8 @@ use App\Models\PostCategory;
 use App\Models\Notice;
 use App\Models\ProfileUpdateRequest;
 use App\Models\Position;
+use App\Policies\RolePolicy;
+use App\Policies\PermissionPolicy;
 use App\Policies\CommitteeMemberAssignmentPolicy;
 use App\Policies\CommitteePolicy;
 use App\Policies\CommitteeTypePolicy;
@@ -24,6 +26,8 @@ use App\Policies\ProfileUpdateRequestPolicy;
 use App\Policies\PositionPolicy;
 use App\Policies\MemberPolicy;
 use App\Policies\MembershipApplicationPolicy;
+use Spatie\Permission\Models\Role;
+use Spatie\Permission\Models\Permission;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 
@@ -36,6 +40,8 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        Gate::policy(Role::class, RolePolicy::class);
+        Gate::policy(Permission::class, PermissionPolicy::class);
         Gate::policy(MembershipApplication::class, MembershipApplicationPolicy::class);
         Gate::policy(Member::class, MemberPolicy::class);
         Gate::policy(CommitteeType::class, CommitteeTypePolicy::class);

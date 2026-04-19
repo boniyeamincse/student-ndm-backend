@@ -33,21 +33,29 @@ class MemberService
         if ($status = $request->input('status')) {
             $query->where('status', $status);
         }
+        
+        if ($request->has('promoted')) {
+            $query->where('is_promoted', $request->boolean('promoted'));
+        }
+
+        if ($request->boolean('leadership_only')) {
+            $query->whereHas('committeeAssignments');
+        }
 
         if ($gender = $request->input('gender')) {
             $query->where('gender', $gender);
         }
 
-        if ($division = $request->input('division')) {
-            $query->where('division_name', 'like', "%{$division}%");
+        if ($divisionId = $request->input('division_id')) {
+            $query->where('division_id', $divisionId);
         }
 
-        if ($district = $request->input('district')) {
-            $query->where('district_name', 'like', "%{$district}%");
+        if ($districtId = $request->input('district_id')) {
+            $query->where('district_id', $districtId);
         }
 
-        if ($upazila = $request->input('upazila')) {
-            $query->where('upazila_name', 'like', "%{$upazila}%");
+        if ($upazilaId = $request->input('upazila_id')) {
+            $query->where('upazila_id', $upazilaId);
         }
 
         $sortBy  = $request->input('sort_by', 'created_at');
@@ -67,6 +75,8 @@ class MemberService
             'statusHistories.changedByUser',
             'user',
             'application',
+            'committeeAssignments.committee',
+            'committeeAssignments.position',
         ])->findOrFail($id);
     }
 
@@ -166,14 +176,17 @@ class MemberService
             ->pluck('count', 'gender')
             ->toArray();
 
-        $summary = compact('total', 'byStatus', 'byGender');
+        $leadership = Member::whereHas('committeeAssignments')->count();
+
+        $summary = compact('total', 'byStatus', 'byGender', 'leadership');
 
         if ($withDivision) {
             $summary['byDivision'] = Member::query()
-                ->selectRaw('division_name, COUNT(*) as count')
-                ->groupBy('division_name')
+                ->selectRaw('division_id, COUNT(*) as count')
+                ->whereNotNull('division_id')
+                ->groupBy('division_id')
                 ->orderByDesc('count')
-                ->pluck('count', 'division_name')
+                ->pluck('count', 'division_id')
                 ->toArray();
         }
 

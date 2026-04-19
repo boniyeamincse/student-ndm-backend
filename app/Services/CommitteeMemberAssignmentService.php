@@ -26,7 +26,7 @@ class CommitteeMemberAssignmentService
         $query = CommitteeMemberAssignment::query()
             ->with([
                 'member:id,member_no,full_name,email,mobile',
-                'committee:id,committee_no,name,committee_type_id,division_name,district_name,upazila_name,union_name',
+                'committee:id,committee_no,name,committee_type_id,division_id,district_id,upazila_id,union_id',
                 'committee.committeeType:id,name,hierarchy_order',
                 'position:id,name,hierarchy_rank,display_order,is_leadership',
             ]);
@@ -59,7 +59,7 @@ class CommitteeMemberAssignmentService
             $query->whereHas('committee', fn ($cq) => $cq->where('committee_type_id', $committeeTypeId));
         }
 
-        foreach (['division_name', 'district_name', 'upazila_name', 'union_name'] as $locationField) {
+        foreach (['division_id', 'district_id', 'upazila_id', 'union_id'] as $locationField) {
             if (! empty($filters[$locationField])) {
                 $query->whereHas('committee', fn ($cq) => $cq->where($locationField, 'like', '%'.$filters[$locationField].'%'));
             }
@@ -731,15 +731,9 @@ class CommitteeMemberAssignmentService
             ->whereNull('deleted_at')
             ->when($ignoreId, fn ($q) => $q->where('id', '!=', $ignoreId));
 
-        if ($positionId === null) {
-            $query->whereNull('position_id')->where('assignment_type', AssignmentType::GeneralMember);
-        } else {
-            $query->where('position_id', $positionId);
-        }
-
         if ($query->exists()) {
             throw ValidationException::withMessages([
-                'assignment' => ['Duplicate active assignment conflict detected for this member/committee/position scope.'],
+                'assignment' => ['A member can only hold one active role in a specific committee at a time.'],
             ]);
         }
     }

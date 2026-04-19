@@ -30,6 +30,7 @@ class AdminMenuService
                 'label' => 'MAIN',
                 'items' => [
                     ['key' => 'dashboard', 'label' => 'Dashboard', 'path' => '/admin/dashboard', 'required_permissions' => ['dashboard.view']],
+                    ['key' => 'promoted-members', 'label' => 'Promoted Member', 'path' => '/admin/members/promotions', 'required_permissions' => ['member.view']],
                 ],
             ],
             [

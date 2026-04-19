@@ -35,13 +35,15 @@ class Member extends Model
         'address_line',
         'village_area',
         'post_office',
-        'union_name',
-        'upazila_name',
-        'district_name',
-        'division_name',
+        'union_id',
+        'upazila_id',
+        'district_id',
+        'division_id',
         'emergency_contact_name',
         'emergency_contact_phone',
         'status',
+        'is_promoted',
+        'promoted_at',
         'bio',
         'last_status_changed_at',
         'status_note',
@@ -55,6 +57,8 @@ class Member extends Model
     {
         return [
             'status'                 => MemberStatus::class,
+            'is_promoted'            => 'boolean',
+            'promoted_at'            => 'datetime',
             'date_of_birth'          => 'date',
             'last_status_changed_at' => 'datetime',
             'joined_at'              => 'datetime',
@@ -108,5 +112,25 @@ class Member extends Model
     public function profileUpdateRequests(): HasMany
     {
         return $this->hasMany(ProfileUpdateRequest::class, 'member_id');
+    }
+
+    public function division(): BelongsTo
+    {
+        return $this->belongsTo(Division::class, 'division_id');
+    }
+
+    public function district(): BelongsTo
+    {
+        return $this->belongsTo(District::class, 'district_id');
+    }
+
+    public function upazila(): BelongsTo
+    {
+        return $this->belongsTo(Upazila::class, 'upazila_id');
+    }
+
+    public function union(): BelongsTo
+    {
+        return $this->belongsTo(Union::class, 'union_id');
     }
 }

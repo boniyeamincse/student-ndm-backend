@@ -18,7 +18,9 @@ class MemberListRequest extends FormRequest
         return [
             'search'    => ['nullable', 'string', 'max:100'],
             'status'    => ['nullable', new Enum(MemberStatus::class)],
-            'gender'    => ['nullable', 'string', 'in:male,female,other'],
+            'promoted'        => ['nullable', 'boolean'],
+            'leadership_only' => ['nullable', 'string'],
+            'gender'          => ['nullable', 'string', 'in:male,female,other'],
             'division'  => ['nullable', 'string', 'max:100'],
             'district'  => ['nullable', 'string', 'max:100'],
             'upazila'   => ['nullable', 'string', 'max:100'],

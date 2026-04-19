@@ -137,6 +137,7 @@ Route::prefix('v1')->group(function () {
             Route::get('/{member}',                  [AdminMemberController::class, 'show']);
             Route::put('/{member}',                  [AdminMemberController::class, 'update']);
             Route::patch('/{member}/status',         [AdminMemberController::class, 'updateStatus']);
+            Route::patch('/{member}/promote',        [AdminMemberController::class, 'promote']);
             Route::delete('/{member}',               [AdminMemberController::class, 'destroy']);
             Route::put('/{member}/restore',          [AdminMemberController::class, 'restore']);
         });

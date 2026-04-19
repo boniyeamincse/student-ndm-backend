@@ -31,10 +31,10 @@ class MemberDetailResource extends JsonResource
                 'address_line' => $this->address_line,
                 'village_area' => $this->village_area,
                 'post_office'  => $this->post_office,
-                'union_name'   => $this->union_name,
-                'upazila'      => $this->upazila_name,
-                'district'     => $this->district_name,
-                'division'     => $this->division_name,
+                'union_id'   => $this->union_id,
+                'upazila'      => $this->upazila_id,
+                'district'     => $this->district_id,
+                'division'     => $this->division_id,
             ],
             'emergency_contact' => [
                 'name'  => $this->emergency_contact_name,
@@ -50,6 +50,14 @@ class MemberDetailResource extends JsonResource
             'membership_application_id' => $this->membership_application_id,
             'created_at'              => $this->created_at?->toDateTimeString(),
             'updated_at'              => $this->updated_at?->toDateTimeString(),
+
+            // Computed primary engagement
+            'primary_committee_name'  => $this->committeeAssignments->first()?->committee?->name,
+            'primary_position_name'   => $this->committeeAssignments->first()?->position?->name,
+            'is_leadership'           => $this->committeeAssignments->count() > 0,
+            'assignments_count'       => $this->committeeAssignments->count(),
+            'leadership_summary'      => $this->committeeAssignments->where('is_leadership', true)->first()?->position?->name,
+            'assignments_summary'     => $this->committeeAssignments->map(fn($a) => ($a->position?->name ?? 'Member') . ' (' . ($a->committee?->name ?? 'Unknown') . ')')->implode(', '),
 
             // Conditionally loaded relations
             'status_histories' => MemberStatusHistoryResource::collection($this->whenLoaded('statusHistories')),

@@ -33,6 +33,7 @@ class SelfProfileService
         $subordinatesCount = 0;
 
         if ($member) {
+            $member->loadMissing(['division', 'district', 'upazila', 'union']);
             $activeAssignmentsCount = CommitteeMemberAssignment::query()
                 ->where('member_id', $member->id)
                 ->where('is_active', true)
@@ -55,6 +56,18 @@ class SelfProfileService
                     ->whereIn('superior_assignment_id', $myLeadershipAssignmentIds)
                     ->where('is_active', true)
                     ->count();
+            }
+        } else {
+            // Fallback: check for a pending or under_review application if no member profile exists yet
+            $application = \App\Models\MembershipApplication::query()
+                ->with(['division', 'district', 'upazila', 'union'])
+                ->where('email', $user->email)
+                ->latest()
+                ->first();
+
+            if ($application) {
+                // Return the application object as a simulated member for the resource to use
+                $member = $application;
             }
         }
 

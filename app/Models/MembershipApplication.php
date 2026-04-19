@@ -36,10 +36,10 @@ class MembershipApplication extends Model
         'address_line',
         'village_area',
         'post_office',
-        'union_name',
-        'upazila_name',
-        'district_name',
-        'division_name',
+        'union_id',
+        'upazila_id',
+        'district_id',
+        'division_id',
         'emergency_contact_name',
         'emergency_contact_phone',
         'reference_member_id',
@@ -119,5 +119,25 @@ class MembershipApplication extends Model
     public function member(): HasOne
     {
         return $this->hasOne(Member::class, 'membership_application_id');
+    }
+
+    public function division(): BelongsTo
+    {
+        return $this->belongsTo(Division::class, 'division_id');
+    }
+
+    public function district(): BelongsTo
+    {
+        return $this->belongsTo(District::class, 'district_id');
+    }
+
+    public function upazila(): BelongsTo
+    {
+        return $this->belongsTo(Upazila::class, 'upazila_id');
+    }
+
+    public function union(): BelongsTo
+    {
+        return $this->belongsTo(Union::class, 'union_id');
     }
 }

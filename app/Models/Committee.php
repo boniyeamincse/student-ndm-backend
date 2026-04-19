@@ -22,10 +22,10 @@ class Committee extends Model
         'committee_type_id',
         'parent_id',
         'code',
-        'division_name',
-        'district_name',
-        'upazila_name',
-        'union_name',
+        'division_id',
+        'district_id',
+        'upazila_id',
+        'union_id',
         'address_line',
         'office_phone',
         'office_email',
@@ -124,6 +124,26 @@ class Committee extends Model
     public function notices(): HasMany
     {
         return $this->hasMany(Notice::class, 'committee_id');
+    }
+
+    public function division(): BelongsTo
+    {
+        return $this->belongsTo(Division::class, 'division_id');
+    }
+
+    public function district(): BelongsTo
+    {
+        return $this->belongsTo(District::class, 'district_id');
+    }
+
+    public function upazila(): BelongsTo
+    {
+        return $this->belongsTo(Upazila::class, 'upazila_id');
+    }
+
+    public function union(): BelongsTo
+    {
+        return $this->belongsTo(Union::class, 'union_id');
     }
 
     // Future placeholder: committeeMembers()

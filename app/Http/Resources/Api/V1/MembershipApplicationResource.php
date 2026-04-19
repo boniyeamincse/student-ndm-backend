@@ -40,10 +40,10 @@ class MembershipApplicationResource extends JsonResource
             'address_line'  => $this->address_line,
             'village_area'  => $this->village_area,
             'post_office'   => $this->post_office,
-            'union_name'    => $this->union_name,
-            'upazila_name'  => $this->upazila_name,
-            'district_name' => $this->district_name,
-            'division_name' => $this->division_name,
+            'union_id'    => $this->union_id,
+            'upazila_id'  => $this->upazila_id,
+            'district_id' => $this->district_id,
+            'division_id' => $this->division_id,
 
             // Emergency
             'emergency_contact_name'  => $this->emergency_contact_name,

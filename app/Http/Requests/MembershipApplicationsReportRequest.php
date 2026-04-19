@@ -15,15 +15,15 @@ class MembershipApplicationsReportRequest extends FormRequest
     {
         return [
             'status'        => ['nullable', 'string', 'in:pending,under_review,approved,rejected,on_hold'],
-            'division_name' => ['nullable', 'string', 'max:100'],
-            'district_name' => ['nullable', 'string', 'max:100'],
+            'division_id' => ['nullable', 'integer', 'exists:divisions,id'],
+            'district_id' => ['nullable', 'integer', 'exists:districts,id'],
             'start_date'    => ['nullable', 'date'],
             'end_date'      => ['nullable', 'date', 'after_or_equal:start_date'],
             'source'        => ['nullable', 'string', 'max:100'],
             'reviewer_id'   => ['nullable', 'integer', 'exists:users,id'],
             'approved_by'   => ['nullable', 'integer', 'exists:users,id'],
             'per_page'      => ['nullable', 'integer', 'min:1', 'max:100'],
-            'sort_by'       => ['nullable', 'string', 'in:created_at,status,division_name,district_name'],
+            'sort_by'       => ['nullable', 'string', 'in:created_at,status,division_id,district_id'],
             'sort_dir'      => ['nullable', 'string', 'in:asc,desc'],
         ];
     }

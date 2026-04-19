@@ -22,6 +22,8 @@ class RoleSeeder extends Seeder
         // Suggested baseline committee permissions for admin role
         $adminCommitteePermissions = [
             'committee.type.view',
+            'committee.type.create',
+            'committee.type.update',
             'committee.view',
             'committee.view.detail',
             'committee.create',
@@ -30,6 +32,32 @@ class RoleSeeder extends Seeder
             'committee.summary.view',
         ];
         $admin->givePermissionTo($adminCommitteePermissions);
+
+        // Membership application management permissions for admin role
+        $adminMembershipPermissions = [
+            'membership.application.view',
+            'membership.application.create',
+            'membership.application.review',
+            'membership.application.approve',
+            'membership.application.reject',
+            'membership.application.hold',
+            'membership.application.delete',
+            'membership.application.restore',
+        ];
+        $admin->givePermissionTo($adminMembershipPermissions);
+
+        // Member management permissions for admin role
+        $adminMemberPermissions = [
+            'member.view',
+            'member.view.detail',
+            'member.create',
+            'member.update',
+            'member.status.update',
+            'member.delete',
+            'member.restore',
+            'member.summary.view',
+        ];
+        $admin->givePermissionTo($adminMemberPermissions);
 
         // Suggested baseline position permissions for admin role
         $adminPositionPermissions = [

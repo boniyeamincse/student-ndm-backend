@@ -27,6 +27,8 @@ use App\Http\Controllers\MemberCommitteeWorkspaceController;
 use App\Http\Controllers\MemberApplicationCenterController;
 use App\Http\Controllers\MemberEventController;
 use App\Http\Controllers\MemberCommunicationController;
+use App\Http\Controllers\MemberSettingsController;
+use App\Http\Controllers\MemberIdCardController;
 use App\Http\Controllers\Api\V1\AdminMembershipApplicationController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\MembershipApplicationController;
@@ -100,9 +102,16 @@ Route::prefix('v1')->group(function () {
     // ── Module 09: Member Notices ─────────────────────────────────────────
     Route::prefix('member')->middleware('auth:sanctum')->group(function () {
         Route::get('/dashboard', [DashboardController::class, 'member']);
+        Route::get('/id-card', [MemberIdCardController::class, 'show']);
 
         Route::get('/stats', [MemberStatsController::class, 'index']);
         Route::get('/activities', [MemberActivityController::class, 'index']);
+
+        Route::get('/settings', [MemberSettingsController::class, 'show']);
+        Route::put('/settings/account', [MemberSettingsController::class, 'updateAccount']);
+        Route::put('/settings/password', [MemberSettingsController::class, 'updatePassword']);
+        Route::put('/settings/privacy', [MemberSettingsController::class, 'updatePrivacy']);
+        Route::put('/settings/notifications', [MemberSettingsController::class, 'updateNotifications']);
 
         Route::get('/notifications', [MemberNotificationController::class, 'index']);
         Route::patch('/notifications/{id}/read', [MemberNotificationController::class, 'markAsRead']);

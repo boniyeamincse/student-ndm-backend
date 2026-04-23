@@ -50,7 +50,8 @@ class StoreCommitteeRequest extends FormRequest
         }
 
         if (! $this->has('is_current')) {
-            $this->merge(['is_current' => true]);
+            $status = CommitteeStatus::from((string) $this->input('status'));
+            $this->merge(['is_current' => $status->isCurrentDefault()]);
         }
     }
 

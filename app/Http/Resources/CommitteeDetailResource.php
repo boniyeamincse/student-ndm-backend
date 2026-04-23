@@ -15,6 +15,8 @@ class CommitteeDetailResource extends JsonResource
             'committee_no' => $this->committee_no,
             'name' => $this->name,
             'slug' => $this->slug,
+            'committee_type_id' => $this->committee_type_id,
+            'committee_type_name' => $this->committeeType?->name,
             'committee_type' => $this->whenLoaded('committeeType', fn () => [
                 'id' => $this->committeeType?->id,
                 'name' => $this->committeeType?->name,
@@ -22,6 +24,8 @@ class CommitteeDetailResource extends JsonResource
                 'code' => $this->committeeType?->code,
                 'hierarchy_order' => $this->committeeType?->hierarchy_order,
             ]),
+            'parent_id' => $this->parent_id,
+            'parent_name' => $this->parentCommittee?->name,
             'parent' => $this->whenLoaded('parentCommittee', fn () => [
                 'id' => $this->parentCommittee?->id,
                 'name' => $this->parentCommittee?->name,
@@ -40,6 +44,13 @@ class CommitteeDetailResource extends JsonResource
             'district_id' => $this->district_id,
             'upazila_id' => $this->upazila_id,
             'union_id' => $this->union_id,
+            'division_name' => $this->division?->name_en,
+            'district_name' => $this->district?->name_en,
+            'upazila_name' => $this->upazila?->name_en,
+            'union_name' => $this->union?->name_en,
+            'child_committees_count' => $this->relationLoaded('childCommittees')
+                ? $this->childCommittees->count()
+                : 0,
             'address_line' => $this->address_line,
             'office_phone' => $this->office_phone,
             'office_email' => $this->office_email,
@@ -53,17 +64,20 @@ class CommitteeDetailResource extends JsonResource
                 'name' => $this->formedByUser?->name,
                 'email' => $this->formedByUser?->email,
             ]),
+            'formed_by_name' => $this->formedByUser?->name,
             'approved_by' => $this->whenLoaded('approvedByUser', fn () => [
                 'id' => $this->approvedByUser?->id,
                 'name' => $this->approvedByUser?->name,
                 'email' => $this->approvedByUser?->email,
             ]),
+            'approved_by_name' => $this->approvedByUser?->name,
             'formed_at' => $this->formed_at?->toDateTimeString(),
             'approved_at' => $this->approved_at?->toDateTimeString(),
             'notes' => $this->notes,
             'created_at' => $this->created_at?->toDateTimeString(),
             'updated_at' => $this->updated_at?->toDateTimeString(),
             'status_history_timeline' => CommitteeStatusHistoryResource::collection($this->whenLoaded('statusHistories')),
+            'status_history' => CommitteeStatusHistoryResource::collection($this->whenLoaded('statusHistories')),
 
             // Future placeholder: committee_members
             // Future placeholder: committee_leaders

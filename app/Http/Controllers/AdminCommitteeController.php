@@ -114,7 +114,7 @@ class AdminCommitteeController extends Controller
         $this->authorize('viewAny', Committee::class);
 
         $filters = [
-            'root_committee_id' => $request->query('root_committee_id'),
+            'root_committee_id' => $request->query('root_committee_id', $request->query('root_id')),
             'committee_type_id' => $request->query('committee_type_id'),
             'status' => $request->query('status'),
             'is_current' => $request->query('is_current'),

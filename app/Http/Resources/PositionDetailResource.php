@@ -9,6 +9,14 @@ class PositionDetailResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
+        $mappedCommitteeTypes = $this->whenLoaded('committeeTypes', fn () => $this->committeeTypes->map(fn ($type) => [
+            'id' => $type->id,
+            'name' => $type->name,
+            'slug' => $type->slug,
+            'hierarchy_order' => $type->hierarchy_order,
+            'is_active' => $type->is_active,
+        ])->values());
+
         return [
             'id' => $this->id,
             'uuid' => $this->uuid,
@@ -24,13 +32,9 @@ class PositionDetailResource extends JsonResource
             'scope' => $this->scope?->value,
             'is_leadership' => $this->is_leadership,
             'is_active' => $this->is_active,
-            'mapped_committee_types' => $this->whenLoaded('committeeTypes', fn () => $this->committeeTypes->map(fn ($type) => [
-                'id' => $type->id,
-                'name' => $type->name,
-                'slug' => $type->slug,
-                'hierarchy_order' => $type->hierarchy_order,
-                'is_active' => $type->is_active,
-            ])->values()),
+            'mapped_committee_types' => $mappedCommitteeTypes,
+            'committee_type_names' => $this->whenLoaded('committeeTypes', fn () => $this->committeeTypes->pluck('name')->values()),
+            'committee_types' => $this->whenLoaded('committeeTypes', fn () => $this->committeeTypes->pluck('name')->values()),
             'created_by' => $this->whenLoaded('creator', fn () => [
                 'id' => $this->creator?->id,
                 'name' => $this->creator?->name,
@@ -44,6 +48,7 @@ class PositionDetailResource extends JsonResource
             'created_at' => $this->created_at?->toDateTimeString(),
             'updated_at' => $this->updated_at?->toDateTimeString(),
             'status_history_timeline' => PositionStatusHistoryResource::collection($this->whenLoaded('statusHistories')),
+            'status_history' => PositionStatusHistoryResource::collection($this->whenLoaded('statusHistories')),
 
             // Future placeholder: assigned_committee_members
             // Future placeholder: office_bearers

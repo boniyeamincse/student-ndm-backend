@@ -29,7 +29,10 @@ class CommitteeTypeService
             $query->where('is_active', (bool) $filters['is_active']);
         }
 
-        return $query->orderBy('hierarchy_order')->paginate((int) ($filters['per_page'] ?? 20));
+        $sortBy = $filters['sort_by'] ?? 'hierarchy_order';
+        $sortDir = $filters['sort_dir'] ?? 'asc';
+
+        return $query->orderBy($sortBy, $sortDir)->paginate((int) ($filters['per_page'] ?? 20));
     }
 
     public function create(array $data, int $actorId): CommitteeType

@@ -16,7 +16,16 @@ class CommitteeService
 {
     public function list(array $filters): LengthAwarePaginator
     {
-        $query = Committee::query()->with(['committeeType:id,name,slug,hierarchy_order', 'parentCommittee:id,name,committee_no']);
+        $query = Committee::query()
+            ->with([
+                'committeeType:id,name,slug,hierarchy_order',
+                'parentCommittee:id,name,committee_no',
+                'division:id,name_en,name_bn',
+                'district:id,name_en,name_bn',
+                'upazila:id,name_en,name_bn',
+                'union:id,name_en,name_bn',
+            ])
+            ->withCount('childCommittees');
 
         if (! empty($filters['search'])) {
             $search = $filters['search'];
@@ -112,6 +121,10 @@ class CommitteeService
             'committeeType',
             'parentCommittee:id,name,committee_no,slug',
             'childCommittees:id,parent_id,name,committee_no,status,is_current',
+            'division:id,name_en,name_bn',
+            'district:id,name_en,name_bn',
+            'upazila:id,name_en,name_bn',
+            'union:id,name_en,name_bn',
             'formedByUser:id,name,email',
             'approvedByUser:id,name,email',
             'statusHistories.changedByUser:id,name,email',
@@ -263,6 +276,16 @@ class CommitteeService
             'archived_committees' => (int) ($statusCounts['archived'] ?? 0),
             'current_committees' => Committee::query()->where('is_current', true)->count(),
             'counts_by_committee_type' => $byType,
+
+            // Frontend-friendly aliases
+            'total' => Committee::count(),
+            'current' => Committee::query()->where('is_current', true)->count(),
+            'by_status' => [
+                'active' => (int) ($statusCounts['active'] ?? 0),
+                'inactive' => (int) ($statusCounts['inactive'] ?? 0),
+                'dissolved' => (int) ($statusCounts['dissolved'] ?? 0),
+                'archived' => (int) ($statusCounts['archived'] ?? 0),
+            ],
         ];
 
         if ($includeDivision) {

@@ -61,7 +61,7 @@ class CommitteeMemberAssignmentService
 
         foreach (['division_id', 'district_id', 'upazila_id', 'union_id'] as $locationField) {
             if (! empty($filters[$locationField])) {
-                $query->whereHas('committee', fn ($cq) => $cq->where($locationField, 'like', '%'.$filters[$locationField].'%'));
+                $query->whereHas('committee', fn ($cq) => $cq->where($locationField, $filters[$locationField]));
             }
         }
 
@@ -583,6 +583,16 @@ class CommitteeMemberAssignmentService
             'total_leadership_assignments' => CommitteeMemberAssignment::where('is_leadership', true)->count(),
             'assignments_by_committee_type' => $assignmentsByCommitteeType,
             'assignments_by_status' => $assignmentsByStatus,
+
+            // Frontend-friendly aliases
+            'total' => CommitteeMemberAssignment::count(),
+            'active' => (int) ($assignmentsByStatus['active'] ?? 0),
+            'inactive' => (int) ($assignmentsByStatus['inactive'] ?? 0),
+            'completed' => (int) ($assignmentsByStatus['completed'] ?? 0),
+            'removed' => (int) ($assignmentsByStatus['removed'] ?? 0),
+            'office_bearers' => CommitteeMemberAssignment::where('assignment_type', AssignmentType::OfficeBearer)->count(),
+            'general_members' => CommitteeMemberAssignment::where('assignment_type', AssignmentType::GeneralMember)->count(),
+            'leadership' => CommitteeMemberAssignment::where('is_leadership', true)->count(),
         ];
 
         if ($includePositionSummary) {

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\MemberListRequest;
+use App\Http\Requests\StoreMemberRequest;
 use App\Http\Requests\UpdateMemberRequest;
 use App\Http\Requests\UpdateMemberStatusRequest;
 use App\Http\Resources\MemberDetailResource;
@@ -11,6 +12,7 @@ use App\Models\Member;
 use App\Services\MemberService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 
 class AdminMemberController extends Controller
 {
@@ -36,6 +38,27 @@ class AdminMemberController extends Controller
                 'per_page'     => $paginator->perPage(),
                 'total'        => $paginator->total(),
             ]
+        );
+    }
+
+    /**
+     * POST /api/v1/admin/members
+     * Create a new member directly.
+     */
+    public function store(StoreMemberRequest $request): JsonResponse
+    {
+        $this->authorize('create', Member::class);
+
+        try {
+            $member = $this->service->create($request->validated(), $request->user()->id);
+        } catch (ValidationException $e) {
+            return $this->error('Validation failed.', 422, $e->errors());
+        }
+
+        return $this->success(
+            new MemberDetailResource($member),
+            'Member created successfully.',
+            201
         );
     }
 

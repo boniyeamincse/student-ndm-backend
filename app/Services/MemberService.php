@@ -150,6 +150,45 @@ class MemberService
         ])->findOrFail($id);
     }
 
+    // ─── Create ──────────────────────────────────────────────────────────────
+
+    public function create(array $data, int $adminId): Member
+    {
+        $data = array_filter($data, fn ($value) => ! is_null($value) && $value !== '');
+
+        // Extract names if not IDs
+        $divisionName = $data['division_name'] ?? null;
+        $districtName = $data['district_name'] ?? null;
+        $upazilaName = $data['upazila_name'] ?? null;
+        $unionName = $data['union_name'] ?? null;
+
+        $this->applyGeoNamesToIds([
+            'division_name' => $divisionName,
+            'district_name' => $districtName,
+            'upazila_name' => $upazilaName,
+            'union_name' => $unionName,
+        ], $data);
+
+        // Handle photo upload
+        if (isset($data['photo']) && is_object($data['photo'])) {
+            $data['photo'] = $data['photo']->store('members/photos', 'public');
+        } else {
+            unset($data['photo']);
+        }
+
+        // Generate unique member number
+        $data['member_no'] = $this->generateMemberNo();
+        $data['status'] = MemberStatus::Active->value;
+        $data['joined_at'] = $data['joined_at'] ?? now();
+        $data['created_by'] = $adminId;
+        $data['updated_by'] = $adminId;
+
+        // Remove names since we converted them to IDs
+        unset($data['division_name'], $data['district_name'], $data['upazila_name'], $data['union_name']);
+
+        return Member::create($data);
+    }
+
     // ─── Update ───────────────────────────────────────────────────────────────
 
     public function update(Member $member, UpdateMemberRequest $request, int $adminId): Member
@@ -278,38 +317,82 @@ class MemberService
         return $summary;
     }
 
-    private function applyGeoNamesToIds(UpdateMemberRequest $request, array &$data): void
+    private function applyGeoNamesToIds(UpdateMemberRequest|array $requestOrData, array &$data): void
     {
-        if (empty($data['division_id']) && $request->filled('division_name')) {
-            $name = trim((string) $request->input('division_name'));
-            $data['division_id'] = Division::query()
-                ->where('name_en', $name)
-                ->orWhere('name_bn', $name)
-                ->value('id');
-        }
+        if ($requestOrData instanceof UpdateMemberRequest) {
+            $request = $requestOrData;
+            if (empty($data['division_id']) && $request->filled('division_name')) {
+                $name = trim((string) $request->input('division_name'));
+                $data['division_id'] = Division::query()
+                    ->where('name_en', $name)
+                    ->orWhere('name_bn', $name)
+                    ->value('id');
+            }
 
-        if (empty($data['district_id']) && $request->filled('district_name')) {
-            $name = trim((string) $request->input('district_name'));
-            $data['district_id'] = District::query()
-                ->where('name_en', $name)
-                ->orWhere('name_bn', $name)
-                ->value('id');
-        }
+            if (empty($data['district_id']) && $request->filled('district_name')) {
+                $name = trim((string) $request->input('district_name'));
+                $data['district_id'] = District::query()
+                    ->where('name_en', $name)
+                    ->orWhere('name_bn', $name)
+                    ->value('id');
+            }
 
-        if (empty($data['upazila_id']) && $request->filled('upazila_name')) {
-            $name = trim((string) $request->input('upazila_name'));
-            $data['upazila_id'] = Upazila::query()
-                ->where('name_en', $name)
-                ->orWhere('name_bn', $name)
-                ->value('id');
-        }
+            if (empty($data['upazila_id']) && $request->filled('upazila_name')) {
+                $name = trim((string) $request->input('upazila_name'));
+                $data['upazila_id'] = Upazila::query()
+                    ->where('name_en', $name)
+                    ->orWhere('name_bn', $name)
+                    ->value('id');
+            }
 
-        if (empty($data['union_id']) && $request->filled('union_name')) {
-            $name = trim((string) $request->input('union_name'));
-            $data['union_id'] = Union::query()
-                ->where('name_en', $name)
-                ->orWhere('name_bn', $name)
-                ->value('id');
+            if (empty($data['union_id']) && $request->filled('union_name')) {
+                $name = trim((string) $request->input('union_name'));
+                $data['union_id'] = Union::query()
+                    ->where('name_en', $name)
+                    ->orWhere('name_bn', $name)
+                    ->value('id');
+            }
+        } else {
+            // Handle array input
+            if (empty($data['division_id']) && ! empty($requestOrData['division_name'])) {
+                $name = trim((string) $requestOrData['division_name']);
+                $data['division_id'] = Division::query()
+                    ->where('name_en', $name)
+                    ->orWhere('name_bn', $name)
+                    ->value('id');
+            }
+
+            if (empty($data['district_id']) && ! empty($requestOrData['district_name'])) {
+                $name = trim((string) $requestOrData['district_name']);
+                $data['district_id'] = District::query()
+                    ->where('name_en', $name)
+                    ->orWhere('name_bn', $name)
+                    ->value('id');
+            }
+
+            if (empty($data['upazila_id']) && ! empty($requestOrData['upazila_name'])) {
+                $name = trim((string) $requestOrData['upazila_name']);
+                $data['upazila_id'] = Upazila::query()
+                    ->where('name_en', $name)
+                    ->orWhere('name_bn', $name)
+                    ->value('id');
+            }
+
+            if (empty($data['union_id']) && ! empty($requestOrData['union_name'])) {
+                $name = trim((string) $requestOrData['union_name']);
+                $data['union_id'] = Union::query()
+                    ->where('name_en', $name)
+                    ->orWhere('name_bn', $name)
+                    ->value('id');
+            }
         }
+    }
+
+    private function generateMemberNo(): string
+    {
+        $year = now()->year;
+        $sequence = Member::whereYear('created_at', $year)->count() + 1;
+        
+        return sprintf('MEM-%d-%06d', $year, $sequence);
     }
 }

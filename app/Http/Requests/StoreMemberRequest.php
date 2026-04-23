@@ -1,0 +1,46 @@
+<?php
+
+namespace App\Http\Requests;
+
+use Illuminate\Foundation\Http\FormRequest;
+
+class StoreMemberRequest extends FormRequest
+{
+    public function authorize(): bool
+    {
+        return true;
+    }
+
+    public function rules(): array
+    {
+        return [
+            'full_name'              => ['required', 'string', 'max:150'],
+            'email'                  => ['required', 'email', 'max:150', 'unique:members,email'],
+            'mobile'                 => ['required', 'string', 'max:20', 'unique:members,mobile'],
+            'photo'                  => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
+            'gender'                 => ['nullable', 'string', 'in:male,female,other'],
+            'date_of_birth'          => ['nullable', 'date', 'before:today'],
+            'blood_group'            => ['nullable', 'string', 'max:5'],
+            'bio'                    => ['nullable', 'string', 'max:1000'],
+            'father_name'            => ['nullable', 'string', 'max:150'],
+            'mother_name'            => ['nullable', 'string', 'max:150'],
+            'educational_institution' => ['nullable', 'string', 'max:200'],
+            'department'             => ['nullable', 'string', 'max:150'],
+            'academic_year'          => ['nullable', 'string', 'max:20'],
+            'occupation'             => ['nullable', 'string', 'max:150'],
+            'address_line'           => ['nullable', 'string', 'max:255'],
+            'village_area'           => ['nullable', 'string', 'max:150'],
+            'post_office'            => ['nullable', 'string', 'max:100'],
+            'union_id'               => ['nullable', 'integer', 'exists:unions,id'],
+            'upazila_id'             => ['nullable', 'integer', 'exists:upazilas,id'],
+            'district_id'            => ['nullable', 'integer', 'exists:districts,id'],
+            'division_id'            => ['nullable', 'integer', 'exists:divisions,id'],
+            'union_name'             => ['nullable', 'string', 'max:100'],
+            'upazila_name'           => ['nullable', 'string', 'max:100'],
+            'district_name'          => ['nullable', 'string', 'max:100'],
+            'division_name'          => ['nullable', 'string', 'max:100'],
+            'emergency_contact_name' => ['nullable', 'string', 'max:150'],
+            'emergency_contact_phone' => ['nullable', 'string', 'max:20'],
+        ];
+    }
+}

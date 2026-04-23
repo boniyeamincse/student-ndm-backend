@@ -134,6 +134,7 @@ Route::prefix('v1')->group(function () {
 
         Route::prefix('members')->group(function () {
             Route::get('/',                          [AdminMemberController::class, 'index']);
+            Route::post('/',                         [AdminMemberController::class, 'store']);
             Route::get('/{member}',                  [AdminMemberController::class, 'show']);
             Route::put('/{member}',                  [AdminMemberController::class, 'update']);
             Route::patch('/{member}/status',         [AdminMemberController::class, 'updateStatus']);

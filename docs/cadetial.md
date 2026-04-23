@@ -19,8 +19,7 @@ These credentials are created by the `SuperAdminSeeder.php`.
 
 # Member Testing Credentials
 
-This project does not seed a default member login by default.
-Use the following test credential pattern for QA after creating a member account.
+This account is seeded into the database for local QA.
 
 ## Member Test Account (QA)
 
@@ -31,9 +30,13 @@ Use the following test credential pattern for QA after creating a member account
 
 ## Setup Steps
 
-1. Register or create a user using the email above.
-2. Ensure the user has the `member` role.
+1. Run the seeders: `php artisan db:seed`.
+2. Login using the credentials above.
 3. Complete profile setup if prompted after login.
+
+## Seeder Reference
+
+This account is created/updated by `TestMemberSeeder.php`.
 
 ## Security Note
 

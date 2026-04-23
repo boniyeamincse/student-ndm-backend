@@ -25,6 +25,7 @@ class DatabaseSeeder extends Seeder
             GeographySeeder::class,
             DivisionCommitteeSeeder::class,
             SuperAdminSeeder::class,
+            TestMemberSeeder::class,
         ]);
     }
 }

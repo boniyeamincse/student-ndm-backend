@@ -4,14 +4,38 @@ namespace App\Http\Resources;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Support\Facades\Storage;
 
 class MyProfileResource extends JsonResource
 {
+    private function buildPhotoDataUrl(?string $path): ?string
+    {
+        if (! $path) {
+            return null;
+        }
+
+        try {
+            if (! Storage::disk('public')->exists($path)) {
+                return null;
+            }
+
+            $mime = Storage::disk('public')->mimeType($path) ?: 'image/jpeg';
+            $content = Storage::disk('public')->get($path);
+
+            return 'data:'.$mime.';base64,'.base64_encode($content);
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
     public function toArray(Request $request): array
     {
         $user = $this['user'];
         $member = $this['member'];
         $settings = $this['settings'];
+        $photoPath = $member?->photo ?: $user->profile_photo;
+        $photoUrl = $photoPath ? asset('storage/'.$photoPath) : null;
+        $photoDataUrl = $this->buildPhotoDataUrl($photoPath);
 
         return [
             'user' => [
@@ -23,7 +47,8 @@ class MyProfileResource extends JsonResource
                 'phone' => $user->phone,
                 'status' => $user->status?->value,
                 'roles' => $user->getRoleNames(),
-                'profile_photo_url' => $member?->photo ? asset('storage/'.$member->photo) : ($user->profile_photo ? asset('storage/'.$user->profile_photo) : null),
+                'profile_photo_url' => $photoUrl,
+                'profile_photo_data_url' => $photoDataUrl,
                 'created_at' => $user->created_at?->toDateTimeString(),
             ],
             'member' => $member ? [

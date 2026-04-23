@@ -16,9 +16,9 @@ class RoleDetailResource extends JsonResource
             'description'       => $this->description ?? null,
             'is_system_role'    => in_array($this->name, ['superadmin', 'admin', 'member']),
             'permissions'       => PermissionResource::collection($this->permissions),
-            'permissions_count' => $this->permissions()->count(),
-            'users_count'       => $this->users()->count(),
-            'users'             => UserBasicResource::collection($this->users),
+            'permissions_count' => $this->permissions_count ?? $this->permissions->count(),
+            'users_count'       => $this->users_count ?? 0,
+            'users'             => UserBasicResource::collection($this->whenLoaded('users')),
             'created_at'        => $this->created_at?->toDateTimeString(),
             'updated_at'        => $this->updated_at?->toDateTimeString(),
         ];

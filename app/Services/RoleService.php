@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\User;
 use Spatie\Permission\Models\Role;
 use Illuminate\Support\Facades\DB;
 
@@ -12,7 +13,7 @@ class RoleService
      */
     public function list($request)
     {
-        $query = Role::query()->withCount(['permissions', 'users']);
+        $query = Role::query()->withCount(['permissions']);
 
         // Search by name
         if ($request->has('search') && $request->search) {
@@ -27,7 +28,15 @@ class RoleService
         $sortOrder = $request->get('sort_order', 'desc');
         $query->orderBy($sortBy, $sortOrder);
 
-        return $query->paginate($request->get('per_page', 15));
+        $paginator = $query->paginate($request->get('per_page', 15));
+
+        $paginator->getCollection()->transform(function (Role $role) {
+            $role->setAttribute('users_count', $this->getUsersQuery($role->id)->count());
+
+            return $role;
+        });
+
+        return $paginator;
     }
 
     /**
@@ -35,7 +44,13 @@ class RoleService
      */
     public function detail($roleId): Role
     {
-        return Role::with(['permissions', 'users'])->findOrFail($roleId);
+        $role = Role::with(['permissions'])->findOrFail($roleId);
+        $users = $this->getUsersQuery($role->id)->get();
+
+        $role->setRelation('users', $users);
+        $role->setAttribute('users_count', $users->count());
+
+        return $role;
     }
 
     /**
@@ -53,7 +68,7 @@ class RoleService
                 $role->syncPermissions($data['permissions']);
             }
 
-            return $role->fresh(['permissions', 'users']);
+            return $this->detail($role->id);
         });
     }
 
@@ -73,7 +88,7 @@ class RoleService
                 'name' => $data['name'] ?? $role->name,
             ]);
 
-            return $role->fresh(['permissions', 'users']);
+            return $this->detail($role->id);
         });
     }
 
@@ -91,7 +106,7 @@ class RoleService
 
             $role->syncPermissions($permissionIds);
 
-            return $role->fresh(['permissions', 'users']);
+            return $this->detail($role->id);
         });
     }
 
@@ -108,7 +123,7 @@ class RoleService
         }
 
         // Prevent deleting roles with users
-        if ($role->users()->exists()) {
+        if ($this->getUsersQuery($role->id)->exists()) {
             abort(422, 'Cannot delete roles assigned to users.');
         }
 
@@ -126,8 +141,21 @@ class RoleService
             'total'       => Role::count(),
             'system'      => Role::whereIn('name', $systemRoles)->count(),
             'custom'      => Role::whereNotIn('name', $systemRoles)->count(),
-            'in_use'      => Role::whereHas('users')->count(),
+            'in_use'      => DB::table('model_has_roles')
+                ->where('model_type', User::class)
+                ->distinct('role_id')
+                ->count('role_id'),
         ];
+    }
+
+    private function getUsersQuery(int|string $roleId)
+    {
+        return User::query()->whereIn('id', function ($query) use ($roleId) {
+            $query->select('model_id')
+                ->from('model_has_roles')
+                ->where('role_id', $roleId)
+                ->where('model_type', User::class);
+        });
     }
 
     /**

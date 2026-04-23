@@ -15,7 +15,7 @@ class RoleListResource extends JsonResource
             'display_name'      => $this->name,
             'description'       => $this->description ?? null,
             'permissions_count' => $this->permissions_count ?? $this->permissions()->count(),
-            'users_count'       => $this->users()->count(),
+            'users_count'       => $this->users_count ?? 0,
             'is_system_role'    => in_array($this->name, ['superadmin', 'admin', 'member']),
             'created_at'        => $this->created_at?->toDateTimeString(),
         ];

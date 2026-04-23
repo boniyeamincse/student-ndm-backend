@@ -19,6 +19,14 @@ use App\Http\Controllers\MeProfileUpdateRequestController;
 use App\Http\Controllers\PublicPostController;
 use App\Http\Controllers\PublicNoticeController;
 use App\Http\Controllers\ReportController;
+use App\Http\Controllers\LocationController;
+use App\Http\Controllers\MemberStatsController;
+use App\Http\Controllers\MemberActivityController;
+use App\Http\Controllers\MemberNotificationController;
+use App\Http\Controllers\MemberCommitteeWorkspaceController;
+use App\Http\Controllers\MemberApplicationCenterController;
+use App\Http\Controllers\MemberEventController;
+use App\Http\Controllers\MemberCommunicationController;
 use App\Http\Controllers\Api\V1\AdminMembershipApplicationController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\MembershipApplicationController;
@@ -84,8 +92,44 @@ Route::prefix('v1')->group(function () {
         Route::get('/pinned-notices', [PublicNoticeController::class, 'pinned']);
     });
 
+    // ── Location Data ───────────────────────────────────────────────────────
+    Route::get('/divisions', [LocationController::class, 'divisions']);
+    Route::get('/districts', [LocationController::class, 'districts']);
+    Route::get('/upazilas', [LocationController::class, 'upazilas']);
+
     // ── Module 09: Member Notices ─────────────────────────────────────────
     Route::prefix('member')->middleware('auth:sanctum')->group(function () {
+        Route::get('/dashboard', [DashboardController::class, 'member']);
+
+        Route::get('/stats', [MemberStatsController::class, 'index']);
+        Route::get('/activities', [MemberActivityController::class, 'index']);
+
+        Route::get('/notifications', [MemberNotificationController::class, 'index']);
+        Route::patch('/notifications/{id}/read', [MemberNotificationController::class, 'markAsRead']);
+        Route::patch('/notifications/read-all', [MemberNotificationController::class, 'markAllAsRead']);
+
+        Route::get('/committee', [MemberCommitteeWorkspaceController::class, 'myCommittee']);
+        Route::get('/committee/members', [MemberCommitteeWorkspaceController::class, 'members']);
+        Route::get('/committee/activities', [MemberCommitteeWorkspaceController::class, 'activities']);
+        Route::post('/committee/apply', [MemberCommitteeWorkspaceController::class, 'apply']);
+
+        Route::get('/applications', [MemberApplicationCenterController::class, 'index']);
+        Route::get('/applications/membership-status', [MemberApplicationCenterController::class, 'membershipStatus']);
+        Route::post('/applications/event', [MemberApplicationCenterController::class, 'eventApply']);
+        Route::post('/applications/certificate', [MemberApplicationCenterController::class, 'certificateRequest']);
+
+        Route::get('/events/upcoming', [MemberEventController::class, 'upcoming']);
+        Route::get('/events/registered', [MemberEventController::class, 'registered']);
+        Route::get('/events/history', [MemberEventController::class, 'history']);
+        Route::post('/events/{id}/join', [MemberEventController::class, 'join']);
+
+        Route::get('/messages', [MemberCommunicationController::class, 'messages']);
+        Route::get('/messages/{id}', [MemberCommunicationController::class, 'messageDetail']);
+        Route::post('/messages', [MemberCommunicationController::class, 'sendMessage']);
+        Route::get('/announcements', [MemberCommunicationController::class, 'announcements']);
+        Route::get('/discussions', [MemberCommunicationController::class, 'discussions']);
+        Route::post('/discussions', [MemberCommunicationController::class, 'createDiscussion']);
+
         Route::get('/notices', [MemberNoticeController::class, 'index']);
         Route::get('/notices/{slug}', [MemberNoticeController::class, 'show']);
     });

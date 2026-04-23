@@ -133,6 +133,7 @@ Route::prefix('v1')->group(function () {
         Route::post('/events/{id}/join', [MemberEventController::class, 'join']);
 
         Route::get('/messages', [MemberCommunicationController::class, 'messages']);
+        Route::get('/messages/targets', [MemberCommunicationController::class, 'messageTargets']);
         Route::get('/messages/{id}', [MemberCommunicationController::class, 'messageDetail']);
         Route::post('/messages', [MemberCommunicationController::class, 'sendMessage']);
         Route::get('/announcements', [MemberCommunicationController::class, 'announcements']);

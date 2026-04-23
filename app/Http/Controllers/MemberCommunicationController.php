@@ -6,6 +6,7 @@ use App\Http\Controllers\Concerns\EnsuresMemberAccess;
 use App\Models\Announcement;
 use App\Models\Discussion;
 use App\Models\MemberMessage;
+use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -62,10 +63,51 @@ class MemberCommunicationController extends Controller
         }
 
         $payload = $request->validate([
-            'recipient_id' => ['required', 'integer', 'exists:users,id'],
+            'recipient_id' => ['nullable', 'integer', 'exists:users,id', 'required_without:send_to_all'],
+            'send_to_all' => ['nullable', 'boolean'],
             'subject' => ['nullable', 'string', 'max:255'],
             'body' => ['required', 'string', 'max:5000'],
         ]);
+
+        $sendToAll = (bool) ($payload['send_to_all'] ?? false);
+
+        if ($sendToAll) {
+            $recipientIds = User::query()
+                ->role('member')
+                ->where('id', '!=', $request->user()->id)
+                ->pluck('id');
+
+            if ($recipientIds->isEmpty()) {
+                return $this->error('No member recipients found.', 422);
+            }
+
+            $now = now();
+            $subject = $payload['subject'] ?? null;
+            $body = $payload['body'];
+            $senderId = $request->user()->id;
+
+            $rows = $recipientIds->map(function (int $recipientId) use ($senderId, $subject, $body, $now) {
+                return [
+                    'sender_id' => $senderId,
+                    'recipient_id' => $recipientId,
+                    'subject' => $subject,
+                    'body' => $body,
+                    'is_read' => false,
+                    'read_at' => null,
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ];
+            })->all();
+
+            foreach (array_chunk($rows, 500) as $chunk) {
+                MemberMessage::query()->insert($chunk);
+            }
+
+            return $this->success([
+                'scope' => 'all_members',
+                'sent_count' => count($rows),
+            ], 'Message sent to all members successfully.', 201);
+        }
 
         $item = MemberMessage::query()->create([
             'sender_id' => $request->user()->id,

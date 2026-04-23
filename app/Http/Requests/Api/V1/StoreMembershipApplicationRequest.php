@@ -40,7 +40,7 @@ class StoreMembershipApplicationRequest extends FormRequest
             'emergency_contact_phone'  => ['nullable', 'string', 'max:20'],
             'reference_member_id'      => ['nullable', 'integer', 'exists:members,id'],
             'desired_committee_level'  => ['nullable', 'string', 'max:100'],
-            'desired_committee_id'     => ['nullable', 'integer'],
+            'desired_committee_id'     => ['nullable', 'integer', 'exists:committees,id'],
             'motivation'               => ['nullable', 'string', 'max:2000'],
             // Photo: optional, validated strictly (max 5MB)
             'photo'                    => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
@@ -65,7 +65,7 @@ class StoreMembershipApplicationRequest extends FormRequest
             'full_name.required' => 'Full name is required.',
             'email.email'        => 'Please enter a valid email address.',
             'photo.image'        => 'Photo must be an image file (jpg, jpeg, png, webp).',
-            'photo.max'          => 'Photo file size must not exceed 2MB.',
+            'photo.max'          => 'Photo file size must not exceed 5MB.',
         ];
     }
 }

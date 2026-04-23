@@ -223,7 +223,15 @@ class AuthService
      */
     public function logout(User $user): void
     {
-        $user->currentAccessToken()->delete();
+        $token = $user->currentAccessToken();
+
+        if (! $token) {
+            throw ValidationException::withMessages([
+                'token' => ['No current API token is associated with this request.'],
+            ]);
+        }
+
+        $token->delete();
     }
 
     /**

@@ -2,42 +2,39 @@
 
 ## Overview
 
-This backend is a Laravel-based REST API organized under `/api/v1` with a small set of system routes under `/api`.
+This backend is a Laravel 13 REST API organized under `/api/v1`, with a small system route set under `/api`.
 
-- Framework: Laravel
-- Authentication: Laravel Sanctum bearer token
-- Authorization: Laravel Policies + Spatie Permission
-- Response style: standardized JSON envelope
-- Total API routes discovered: `163`
+| Area | Route prefix | Main access model | Core purpose |
+| --- | --- | --- | --- |
+| System | `/api` | Public | Health check |
+| Auth | `/api/v1/auth` | Public + authenticated | Registration, login, password lifecycle, social auth |
+| Membership | `/api/v1/membership` | Public + admin | Applicant onboarding and approval workflow |
+| Public content | `/api/v1/public` | Public | Published posts and notices |
+| Member notices | `/api/v1/member` | Authenticated member/user | Audience-filtered internal notices |
+| Self service | `/api/v1/me` | Authenticated user with self-service permissions | Profile, settings, personal hierarchy views |
+| Admin operations | `/api/v1/admin` | Authenticated admin/superadmin with policies or permissions | Master data, content, hierarchy, role management |
+| Dashboard | `/api/v1/dashboard` | Authenticated user with dashboard permissions | KPI cards, charts, pending items |
+| Reports | `/api/v1/reports` | Authenticated user with report permissions | Aggregated operational reporting |
 
-Base URLs:
+## Cross-cutting business patterns
 
-- `GET /api/health`
-- Versioned API base: `/api/v1`
+- **Auth** uses Sanctum bearer tokens.
+- **Authorization** is mixed between Laravel policies (`$this->authorize(...)`) and explicit permission checks (`user()->can(...)`) backed by Spatie Permission.
+- **Soft delete + restore** is the default lifecycle for most admin-managed records.
+- **Status history tables** are used in the workflow-heavy modules so state changes remain auditable.
+- **Number generation** is business-significant across modules: applications, members, committees, assignments, relations, posts, notices, and profile update requests all get generated reference numbers.
+- **Service layer owns business rules**. Controllers are mostly validation, authorization, and response shaping.
 
-Standard response shape:
+## Module 1: System and authentication
 
-```json
-{
-  "success": true,
-  "message": "Request successful.",
-  "data": {},
-  "meta": {}
-}
-```
-
-The response helper is defined in `app/Traits/ApiResponse.php`.
-
-## Module 1: System and Auth
-
-Primary files:
+**Key files**
 
 - `routes/api.php`
-- `routes/api_v1.php`
 - `app/Http/Controllers/Api/V1/AuthController.php`
 - `app/Services/AuthService.php`
+- `app/Models/User.php`
 
-Endpoints:
+**Endpoints**
 
 - `GET /api/health`
 - `POST /api/v1/auth/register`
@@ -51,34 +48,30 @@ Endpoints:
 - `POST /api/v1/auth/logout-all`
 - `PUT /api/v1/auth/change-password`
 
-Behavior:
+**Business logic**
 
-- Public auth endpoints are rate-limited with `throttle:10,1`.
-- Login supports email or phone via request logic.
-- Social login supports `google` and `facebook`.
-- Password reset responses are intentionally generic to reduce email enumeration risk.
-- Password change and password reset revoke tokens for security.
+- Public auth routes are throttled at `10/min`.
+- Registration creates a lightweight **active** user immediately, auto-generates a unique username from email, and assigns the `member` role if that role exists.
+- Login accepts either **email or phone** and intentionally returns the same failure message for missing user vs wrong password to reduce user enumeration risk.
+- User login is gated by `UserStatus::canLogin()`, so only **active** users can authenticate.
+- Social auth supports only **Google** and **Facebook**. First-time social login auto-provisions a user, sets `email_verified_at`, and returns a `requires_profile_completion` hint to the frontend.
+- Password reset uses Laravel broker flow and always returns a generic response for forgot-password.
+- Both **reset password** and **change password** revoke tokens; change password revokes **all** tokens, including the current one.
 
-Observations:
+## Module 2: Membership application and approval
 
-- Auth flow is clean and separated into controller + service layers.
-- Social callback redirects to the frontend with token and next-step hints.
-- Authenticated user profile is exposed through `/auth/me`.
-
-## Module 2: Membership Application
-
-Primary files:
+**Key files**
 
 - `app/Http/Controllers/Api/V1/MembershipApplicationController.php`
 - `app/Http/Controllers/Api/V1/AdminMembershipApplicationController.php`
 - `app/Services/MembershipApplicationService.php`
+- `app/Models/MembershipApplication.php`
+- `app/Models/ApplicationStatusHistory.php`
+- `app/Enum/ApplicationStatus.php`
 
-Public endpoint:
+**Endpoints**
 
 - `POST /api/v1/membership/apply`
-
-Admin endpoints:
-
 - `GET /api/v1/admin/membership-applications`
 - `GET /api/v1/admin/membership-applications/{id}`
 - `PUT /api/v1/admin/membership-applications/{id}/review`
@@ -88,100 +81,34 @@ Admin endpoints:
 - `DELETE /api/v1/admin/membership-applications/{id}`
 - `PUT /api/v1/admin/membership-applications/{id}/restore`
 
-Behavior:
+**Business logic**
 
-- Public submission is rate-limited with `throttle:5,1`.
-- Approval flow appears to create both a `user` and a `member`.
-- Status history and review actions are modeled explicitly.
+- Public submission is throttled at `5/min` per IP.
+- Submission blocks duplicate **active** applications for the same email or mobile. “Active” here means `pending`, `under_review`, or `on_hold`.
+- On submit, the system stores the applicant photo, generates `application_no`, records IP/source, sets status to `pending`, writes a history row, and attempts to send an acknowledgement notification.
+- Review moves an application to `under_review` unless it is already finalized.
+- Approve is the most important workflow:
+  - runs inside a DB transaction,
+  - marks the application approved,
+  - resolves or creates a `User`,
+  - creates a linked `Member`,
+  - assigns the `member` role,
+  - then, outside the transaction, tries to send a password setup link and approval notification.
+- If email and mobile resolve to **different existing users**, approval is blocked for manual resolution.
+- Rejected applications cannot be approved directly; approved applications cannot be rejected or put on hold.
+- Status changes are audited through `application_status_histories`.
 
-Observations:
+## Module 3: Members
 
-- This module looks like a core onboarding workflow.
-- State transitions are important here and already have some test coverage.
-
-## Module 3: Public Content
-
-Primary files:
-
-- `app/Http/Controllers/PublicPostController.php`
-- `app/Http/Controllers/PublicNoticeController.php`
-- `app/Services/PostService.php`
-- `app/Services/NoticeService.php`
-
-Post endpoints:
-
-- `GET /api/v1/public/posts`
-- `GET /api/v1/public/posts/{slug}`
-- `GET /api/v1/public/post-categories`
-- `GET /api/v1/public/featured-posts`
-- `GET /api/v1/public/news`
-- `GET /api/v1/public/blogs`
-
-Notice endpoints:
-
-- `GET /api/v1/public/notices`
-- `GET /api/v1/public/notices/{slug}`
-- `GET /api/v1/public/pinned-notices`
-
-Behavior:
-
-- Public content is read-only.
-- Post listings support filtered slices such as featured, news, and blogs.
-- Category listing is independent and only returns active categories.
-
-Observations:
-
-- Public API design is straightforward and frontend-friendly.
-- Slug-based detail routes are good for SEO and public URLs.
-
-## Module 4: Member Self-Service (`/me`)
-
-Primary files:
-
-- `app/Http/Controllers/MeProfileController.php`
-- `app/Http/Controllers/MeProfileUpdateRequestController.php`
-- `app/Services/SelfProfileService.php`
-- `app/Services/AccountSettingService.php`
-- `app/Services/ProfileUpdateRequestService.php`
-
-Endpoints:
-
-- `GET /api/v1/me/profile`
-- `PUT /api/v1/me/profile`
-- `POST /api/v1/me/profile/photo`
-- `GET /api/v1/me/account-settings`
-- `PUT /api/v1/me/account-settings`
-- `GET /api/v1/me/member-overview`
-- `GET /api/v1/me/committee-assignments`
-- `GET /api/v1/me/leader`
-- `GET /api/v1/me/subordinates`
-- `GET /api/v1/me/profile-summary`
-- `GET /api/v1/me/profile-update-requests`
-- `POST /api/v1/me/profile-update-requests`
-- `GET /api/v1/me/profile-update-requests/{id}`
-- `POST /api/v1/me/profile-update-requests/{id}/cancel`
-
-Behavior:
-
-- These routes require `auth:sanctum`.
-- Many actions rely on fine-grained permissions such as `self.profile.view`.
-- Account settings are created on demand if missing.
-- Profile changes can go through a request-based review flow, not only direct edits.
-
-Observations:
-
-- This module is well-scoped for member self-service.
-- The split between direct profile updates and profile update requests suggests approval-sensitive fields.
-
-## Module 5: Member Management
-
-Primary files:
+**Key files**
 
 - `app/Http/Controllers/AdminMemberController.php`
 - `app/Services/MemberService.php`
-- `app/Policies/MemberPolicy.php`
+- `app/Models/Member.php`
+- `app/Models/MemberStatusHistory.php`
+- `app/Enum/MemberStatus.php`
 
-Endpoints:
+**Endpoints**
 
 - `GET /api/v1/admin/members-summary`
 - `GET /api/v1/admin/members`
@@ -191,327 +118,420 @@ Endpoints:
 - `DELETE /api/v1/admin/members/{member}`
 - `PUT /api/v1/admin/members/{member}/restore`
 
-Behavior:
+**Business logic**
 
-- Supports listing, detail, safe-field updates, status changes, soft delete, and restore.
-- Uses policy checks for major operations.
-- Summary endpoint exposes aggregates.
+- Member records are the operational profile created from approved membership applications.
+- Member updates can replace the stored photo and keep `users.name` / `users.email` synchronized when those fields change.
+- Status changes write `last_status_changed_at`, `status_note`, and a `member_status_histories` row.
+- Admin can optionally set `revoke_access=true` on status change, which inactivates the linked user and deletes tokens.
+- Summary endpoints aggregate counts by status, gender, and optionally division.
 
-Observations:
+## Module 4: Committee types and committees
 
-- Member management is typical admin CRUD with workflow/status handling layered on top.
-- Status changes can also affect linked user access.
-
-## Module 6: Committee Management
-
-Primary files:
+**Key files**
 
 - `app/Http/Controllers/AdminCommitteeTypeController.php`
 - `app/Http/Controllers/AdminCommitteeController.php`
 - `app/Services/CommitteeTypeService.php`
 - `app/Services/CommitteeService.php`
+- `app/Models/CommitteeType.php`
+- `app/Models/Committee.php`
+- `app/Models/CommitteeStatusHistory.php`
 
-Committee type endpoints:
+**Endpoints**
 
-- `GET /api/v1/admin/committee-types`
-- `POST /api/v1/admin/committee-types`
-- `GET /api/v1/admin/committee-types/{committeeType}`
-- `PUT /api/v1/admin/committee-types/{committeeType}`
-- `DELETE /api/v1/admin/committee-types/{committeeType}`
+- `GET|POST /api/v1/admin/committee-types`
+- `GET|PUT|DELETE /api/v1/admin/committee-types/{committeeType}`
 - `PUT /api/v1/admin/committee-types/{committeeType}/restore`
-
-Committee endpoints:
-
 - `GET /api/v1/admin/committees-summary`
 - `GET /api/v1/admin/committees-tree`
-- `GET /api/v1/admin/committees`
-- `POST /api/v1/admin/committees`
-- `GET /api/v1/admin/committees/{committee}`
-- `PUT /api/v1/admin/committees/{committee}`
+- `GET|POST /api/v1/admin/committees`
+- `GET|PUT|DELETE /api/v1/admin/committees/{committee}`
 - `PATCH /api/v1/admin/committees/{committee}/status`
-- `DELETE /api/v1/admin/committees/{committee}`
 - `PUT /api/v1/admin/committees/{committee}/restore`
 
-Behavior:
+**Business logic**
 
-- Committee data supports both flat admin CRUD and tree-based retrieval.
-- Soft-delete and restore are built in.
-- Status changes are explicit.
+- Committee types define **hierarchy order** and are used to validate committee parent/child relationships.
+- Default type slugs (`central`, `division`, `district`, `upazila`, `union`) cannot be deleted.
+- Committee creation validates:
+  - correct parent level,
+  - correct creation order,
+  - required geographic scope by hierarchy level,
+  - duplicate name/type/location conflicts,
+  - cycle safety on updates.
+- Non-central committees require a parent committee of the immediately preceding hierarchy level.
+- Committees get generated `committee_no`, unique slug, and type-based code.
+- Committee status changes are audited; `dissolved` and `archived` force `is_current=false`.
+- Committees cannot be deleted while active child committees still exist.
+- The tree endpoint is a true hierarchy builder, not just a grouped list.
 
-Observations:
+## Module 5: Positions
 
-- The tree endpoint is a strong signal that committees are hierarchical, not just categorized records.
-
-## Module 7: Positions and Assignments
-
-Primary files:
+**Key files**
 
 - `app/Http/Controllers/AdminPositionController.php`
-- `app/Http/Controllers/AdminCommitteeMemberAssignmentController.php`
 - `app/Services/PositionService.php`
-- `app/Services/CommitteeMemberAssignmentService.php`
+- `app/Models/Position.php`
+- `app/Models/PositionStatusHistory.php`
+- `app/Enum/PositionScope.php`
 
-Position endpoints:
+**Endpoints**
 
 - `GET /api/v1/admin/positions-summary`
-- `GET /api/v1/admin/positions`
-- `POST /api/v1/admin/positions`
-- `GET /api/v1/admin/positions/{position}`
-- `PUT /api/v1/admin/positions/{position}`
+- `GET|POST /api/v1/admin/positions`
+- `GET|PUT|DELETE /api/v1/admin/positions/{position}`
 - `PATCH /api/v1/admin/positions/{position}/status`
-- `DELETE /api/v1/admin/positions/{position}`
 - `PUT /api/v1/admin/positions/{position}/restore`
 
-Assignment endpoints:
+**Business logic**
+
+- Positions are reusable designations with ordering and leadership semantics.
+- `scope=global` means usable everywhere; `scope=committee_specific` means the position must be mapped to one or more active committee types.
+- Name and code uniqueness are enforced across active and soft-deleted records.
+- Status change is modeled as active/inactive and audited in `position_status_histories`.
+- When a position becomes global, committee-type mappings are cleared.
+
+## Module 6: Committee member assignments
+
+**Key files**
+
+- `app/Http/Controllers/AdminCommitteeMemberAssignmentController.php`
+- `app/Services/CommitteeMemberAssignmentService.php`
+- `app/Models/CommitteeMemberAssignment.php`
+- `app/Models/CommitteeMemberAssignmentHistory.php`
+- `app/Models/CommitteeMemberPositionHistory.php`
+- `app/Enum/AssignmentStatus.php`
+- `app/Enum/AssignmentType.php`
+
+**Endpoints**
 
 - `GET /api/v1/admin/committee-member-assignments-summary`
-- `GET /api/v1/admin/committee-member-assignments`
-- `POST /api/v1/admin/committee-member-assignments`
-- `GET /api/v1/admin/committee-member-assignments/{assignment}`
-- `PUT /api/v1/admin/committee-member-assignments/{assignment}`
+- `GET|POST /api/v1/admin/committee-member-assignments`
+- `GET|PUT|DELETE /api/v1/admin/committee-member-assignments/{assignment}`
 - `PATCH /api/v1/admin/committee-member-assignments/{assignment}/status`
 - `POST /api/v1/admin/committee-member-assignments/{assignment}/transfer`
-- `DELETE /api/v1/admin/committee-member-assignments/{assignment}`
 - `PUT /api/v1/admin/committee-member-assignments/{assignment}/restore`
 - `GET /api/v1/admin/committees/{committeeId}/members`
 - `GET /api/v1/admin/committees/{committeeId}/office-bearers`
 - `GET /api/v1/admin/members/{memberId}/committee-assignments`
 
-Behavior:
+**Business logic**
 
-- Assignment management goes beyond CRUD and includes transfer workflows and scoped lookup endpoints.
-- There are dedicated history models for assignments and positions.
+- Only **active members** can be assigned.
+- Assignments are allowed only for committees that are **active and current**.
+- If a position is committee-specific, it must be valid for the committee’s type.
+- `office_bearer` assignments require a position.
+- A member can hold only **one active assignment per committee** at a time.
+- A member can hold only **one active primary assignment per committee type level**.
+- `AssignmentStatus` and `is_active` are coupled through service rules: non-`active` statuses cannot remain active.
+- Transfer does not mutate the existing row into the new assignment; it creates a **new assignment record** and, for move semantics, completes/deactivates the old assignment.
+- Assignment history captures creation, update, status changes, primary flag changes, activation/deactivation, transfer, delete, restore, and position changes.
+- Office-bearer lists are sorted with leadership and hierarchy rank in mind, not simple creation order.
 
-Observations:
+## Module 7: Reporting hierarchy
 
-- This is one of the richer modules and likely central to organizational operations.
-
-## Module 8: Hierarchy and Reporting Relations
-
-Primary files:
+**Key files**
 
 - `app/Http/Controllers/AdminMemberReportingRelationController.php`
 - `app/Services/MemberReportingRelationService.php`
+- `app/Models/MemberReportingRelation.php`
+- `app/Models/MemberReportingRelationHistory.php`
+- `app/Enum/ReportingRelationType.php`
 
-Endpoints:
+**Endpoints**
 
 - `GET /api/v1/admin/member-reporting-relations-summary`
-- `GET /api/v1/admin/member-reporting-relations`
-- `POST /api/v1/admin/member-reporting-relations`
-- `GET /api/v1/admin/member-reporting-relations/{id}`
-- `PUT /api/v1/admin/member-reporting-relations/{id}`
+- `GET|POST /api/v1/admin/member-reporting-relations`
+- `GET|PUT|DELETE /api/v1/admin/member-reporting-relations/{id}`
 - `PATCH /api/v1/admin/member-reporting-relations/{id}/status`
-- `DELETE /api/v1/admin/member-reporting-relations/{id}`
 - `PUT /api/v1/admin/member-reporting-relations/{id}/restore`
 - `GET /api/v1/admin/committee-member-assignments/{assignmentId}/leader`
 - `GET /api/v1/admin/committee-member-assignments/{assignmentId}/subordinates`
 - `GET /api/v1/admin/committees/{committeeId}/hierarchy-tree`
 
-Behavior:
+**Business logic**
 
-- Models direct reporting structures separately from committee assignment records.
-- Exposes both record management and tree/query endpoints.
+- Reporting relations connect a **subordinate assignment** to a **superior assignment**.
+- The service currently requires both assignments to belong to the **same committee**.
+- Active relations require both assignments to be active.
+- `is_primary` is only allowed for `direct_report`.
+- Duplicate active relations are blocked.
+- Circular hierarchies are blocked by explicit cycle detection.
+- The hierarchy-tree endpoint builds a nested org structure from assignments plus active relations and can optionally include orphaned assignments.
+- Leader lookup defaults to the active, primary, direct-report relation unless the caller relaxes filters.
 
-Observations:
+## Module 8: Posts and post categories
 
-- This module gives the API an organizational graph layer, not just relational CRUD.
-
-## Module 9: Content Management
-
-Primary files:
+**Key files**
 
 - `app/Http/Controllers/AdminPostCategoryController.php`
 - `app/Http/Controllers/AdminPostController.php`
+- `app/Http/Controllers/PublicPostController.php`
+- `app/Services/PostCategoryService.php`
+- `app/Services/PostService.php`
+- `app/Models/Post.php`
+- `app/Models/PostCategory.php`
+- `app/Models/PostStatusHistory.php`
+- `app/Enum/PostStatus.php`
+- `app/Enum/PostVisibility.php`
+
+**Endpoints**
+
+- Public:
+  - `GET /api/v1/public/posts`
+  - `GET /api/v1/public/posts/{slug}`
+  - `GET /api/v1/public/post-categories`
+  - `GET /api/v1/public/featured-posts`
+  - `GET /api/v1/public/news`
+  - `GET /api/v1/public/blogs`
+- Admin categories:
+  - `GET|POST /api/v1/admin/post-categories`
+  - `GET|PUT|DELETE /api/v1/admin/post-categories/{id}`
+  - `PATCH /api/v1/admin/post-categories/{id}/status`
+  - `PUT /api/v1/admin/post-categories/{id}/restore`
+- Admin posts:
+  - `GET /api/v1/admin/posts-summary`
+  - `GET|POST /api/v1/admin/posts`
+  - `GET|PUT|DELETE /api/v1/admin/posts/{id}`
+  - `PATCH /api/v1/admin/posts/{id}/status`
+  - `PATCH /api/v1/admin/posts/{id}/feature`
+  - `POST /api/v1/admin/posts/{id}/publish`
+  - `POST /api/v1/admin/posts/{id}/unpublish`
+  - `POST /api/v1/admin/posts/{id}/archive`
+  - `PUT /api/v1/admin/posts/{id}/restore`
+
+**Business logic**
+
+- Public content only shows posts that are:
+  - `published`,
+  - `visibility=public`,
+  - and either unpublished date is null or already reached.
+- Public detail increments `view_count`.
+- Publishing a post requires `post.publish`.
+- Allowed status transitions are explicit and enforced in service code.
+- Featured/homepage rules:
+  - only published posts can be featured,
+  - homepage placement requires `visibility=public`.
+- Publishing is blocked if the selected category is inactive.
+- Committee-targeted posts require the committee to be active or current.
+- Post categories cannot be deleted while used by published posts.
+
+## Module 9: Notices
+
+**Key files**
+
 - `app/Http/Controllers/AdminNoticeController.php`
+- `app/Http/Controllers/PublicNoticeController.php`
+- `app/Http/Controllers/MemberNoticeController.php`
+- `app/Services/NoticeService.php`
+- `app/Services/NoticeAttachmentService.php`
+- `app/Models/Notice.php`
+- `app/Models/NoticeAttachment.php`
+- `app/Models/NoticeAudienceRule.php`
+- `app/Models/NoticeStatusHistory.php`
+- `app/Enum/NoticeStatus.php`
+- `app/Enum/NoticeAudienceType.php`
+- `app/Enum/NoticeAudienceRuleType.php`
 
-Post category endpoints:
+**Endpoints**
 
-- `GET /api/v1/admin/post-categories`
-- `POST /api/v1/admin/post-categories`
-- `GET /api/v1/admin/post-categories/{id}`
-- `PUT /api/v1/admin/post-categories/{id}`
-- `PATCH /api/v1/admin/post-categories/{id}/status`
-- `DELETE /api/v1/admin/post-categories/{id}`
-- `PUT /api/v1/admin/post-categories/{id}/restore`
+- Public:
+  - `GET /api/v1/public/notices`
+  - `GET /api/v1/public/notices/{slug}`
+  - `GET /api/v1/public/pinned-notices`
+- Member:
+  - `GET /api/v1/member/notices`
+  - `GET /api/v1/member/notices/{slug}`
+- Admin:
+  - `GET /api/v1/admin/notices-summary`
+  - `GET|POST /api/v1/admin/notices`
+  - `GET|PUT|DELETE /api/v1/admin/notices/{id}`
+  - `PATCH /api/v1/admin/notices/{id}/status`
+  - `PATCH /api/v1/admin/notices/{id}/pin`
+  - `POST /api/v1/admin/notices/{id}/attachments`
+  - `DELETE /api/v1/admin/notices/{id}/attachments/{attachmentId}`
+  - `PUT /api/v1/admin/notices/{id}/restore`
 
-Post endpoints:
+**Business logic**
 
-- `GET /api/v1/admin/posts-summary`
-- `GET /api/v1/admin/posts`
-- `POST /api/v1/admin/posts`
-- `GET /api/v1/admin/posts/{id}`
-- `PUT /api/v1/admin/posts/{id}`
-- `PATCH /api/v1/admin/posts/{id}/status`
-- `PATCH /api/v1/admin/posts/{id}/feature`
-- `POST /api/v1/admin/posts/{id}/publish`
-- `POST /api/v1/admin/posts/{id}/unpublish`
-- `POST /api/v1/admin/posts/{id}/archive`
-- `DELETE /api/v1/admin/posts/{id}`
-- `PUT /api/v1/admin/posts/{id}/restore`
+- Notices have both **visibility** and **audience** rules.
+- Public queries only show notices that are:
+  - `published`,
+  - `visibility=public`,
+  - inside the publish/expiry window.
+- Pinned notices always sort first.
+- Publishing requires `notice.publish`; pinning requires `pin` authorization on the notice.
+- A notice can only be pinned when published.
+- `committee_specific` audience requires `committee_id`.
+- Dissolved or archived committees cannot be targeted.
+- `custom` audience is built from `notice_audience_rules`, which can target:
+  - role,
+  - member,
+  - committee,
+  - position,
+  - assignment type.
+- Member-visible queries dynamically compute whether the current user qualifies through member status, active assignments, leadership flag, roles, positions, and assignment types.
+- Attachment management is delegated to `NoticeAttachmentService`.
 
-Notice endpoints:
+## Module 10: Self profile, account settings, and profile update requests
 
-- `GET /api/v1/admin/notices-summary`
-- `GET /api/v1/admin/notices`
-- `POST /api/v1/admin/notices`
-- `GET /api/v1/admin/notices/{id}`
-- `PUT /api/v1/admin/notices/{id}`
-- `PATCH /api/v1/admin/notices/{id}/status`
-- `PATCH /api/v1/admin/notices/{id}/pin`
-- `POST /api/v1/admin/notices/{id}/attachments`
-- `DELETE /api/v1/admin/notices/{id}/attachments/{attachmentId}`
-- `DELETE /api/v1/admin/notices/{id}`
-- `PUT /api/v1/admin/notices/{id}/restore`
+**Key files**
 
-Behavior:
-
-- Content supports drafting, featuring, publishing, unpublishing, archiving, and pinning.
-- Notices include attachment management.
-
-Observations:
-
-- This module is stronger than a basic CMS because it includes editorial workflow states.
-
-## Module 10: Profile Update Administration
-
-Primary files:
-
-- `app/Http/Controllers/AdminProfileUpdateRequestController.php`
+- `app/Http/Controllers/MeProfileController.php`
+- `app/Http/Controllers/MeProfileUpdateRequestController.php`
+- `app/Services/SelfProfileService.php`
+- `app/Services/AccountSettingService.php`
 - `app/Services/ProfileUpdateRequestService.php`
+- `app/Models/AccountSetting.php`
+- `app/Models/ProfileUpdateRequest.php`
+- `app/Models/ProfileUpdateRequestHistory.php`
 
-Endpoints:
+**Endpoints**
 
-- `GET /api/v1/admin/profile-update-requests`
-- `GET /api/v1/admin/profile-update-requests/{id}`
-- `PATCH /api/v1/admin/profile-update-requests/{id}/approve`
-- `PATCH /api/v1/admin/profile-update-requests/{id}/reject`
+- `GET|PUT /api/v1/me/profile`
+- `POST /api/v1/me/profile/photo`
+- `GET|PUT /api/v1/me/account-settings`
+- `GET /api/v1/me/member-overview`
+- `GET /api/v1/me/committee-assignments`
+- `GET /api/v1/me/leader`
+- `GET /api/v1/me/subordinates`
+- `GET /api/v1/me/profile-summary`
+- `GET|POST /api/v1/me/profile-update-requests`
+- `GET /api/v1/me/profile-update-requests/{id}`
+- `POST /api/v1/me/profile-update-requests/{id}/cancel`
+- Admin review:
+  - `GET /api/v1/admin/profile-update-requests`
+  - `GET /api/v1/admin/profile-update-requests/{id}`
+  - `PATCH /api/v1/admin/profile-update-requests/{id}/approve`
+  - `PATCH /api/v1/admin/profile-update-requests/{id}/reject`
 
-Behavior:
+**Business logic**
 
-- Admins can review and resolve profile update requests from members.
+- Self profile reads merge `users`, `members`, roles, account settings, assignment counts, subordinate counts, and pending profile request counts.
+- If the user has no `Member` yet, profile reads can fall back to the most recent membership application.
+- Direct profile edits are intentionally restricted:
+  - fields like `member_no`, `status`, hierarchy/assignment fields, and direct email change are blocked,
+  - lower-risk fields such as phone, address, bio, and education details can be updated directly.
+- Profile photo source of truth depends on the account:
+  - linked member => stored on `members.photo`,
+  - user without member => stored on `users.profile_photo`.
+- Account settings are lazily created with defaults like `Asia/Dhaka`, email notifications enabled, and profile visibility set to members-only.
+- Profile update requests:
+  - store `requested_changes` JSON,
+  - prevent identical duplicate pending requests of the same type,
+  - move through `pending -> approved/rejected/cancelled`,
+  - apply only whitelisted fields on approval,
+  - enforce email uniqueness before approving email changes.
 
-Observations:
+## Module 11: Roles, permissions, user-role sync, and admin menu
 
-- This module complements the `/me/profile-update-requests` workflow and keeps approval-sensitive changes auditable.
-
-## Module 11: Roles, Permissions, Dashboard, and Reports
-
-Primary files:
+**Key files**
 
 - `app/Http/Controllers/Api/V1/AdminRoleController.php`
 - `app/Http/Controllers/Api/V1/AdminPermissionController.php`
 - `app/Http/Controllers/Api/V1/AdminUserRoleController.php`
 - `app/Http/Controllers/AdminMenuController.php`
-- `app/Http/Controllers/DashboardController.php`
-- `app/Http/Controllers/ReportController.php`
+- `app/Services/RoleService.php`
+- `app/Services/PermissionService.php`
+- `app/Services/UserRoleService.php`
+- `app/Services/AdminMenuService.php`
 
-Role and permission endpoints:
+**Endpoints**
 
 - `GET /api/v1/admin/menu`
-- `GET /api/v1/admin/roles`
-- `POST /api/v1/admin/roles`
+- `GET|POST /api/v1/admin/roles`
 - `GET /api/v1/admin/roles/summary`
-- `GET /api/v1/admin/roles/{role}`
-- `PUT /api/v1/admin/roles/{role}`
+- `GET|PUT|DELETE /api/v1/admin/roles/{role}`
 - `PATCH /api/v1/admin/roles/{role}/permissions`
-- `DELETE /api/v1/admin/roles/{role}`
 - `GET /api/v1/admin/permissions`
 - `GET /api/v1/admin/permissions/grouped`
 - `GET /api/v1/admin/permissions/{permission}`
 - `PATCH /api/v1/admin/users/{user}/roles`
+- `GET /api/v1/admin/users/lookup`
 
-Dashboard endpoints:
+**Business logic**
 
-- `GET /api/v1/dashboard`
-- `GET /api/v1/dashboard/superadmin`
-- `GET /api/v1/dashboard/admin`
-- `GET /api/v1/dashboard/member`
-- `GET /api/v1/dashboard/stats`
-- `GET /api/v1/dashboard/charts`
-- `GET /api/v1/dashboard/recent-activities`
-- `GET /api/v1/dashboard/pending-items`
-- `GET /api/v1/dashboard/latest-content`
+- The system uses Spatie roles/permissions.
+- Protected system roles are `superadmin`, `admin`, and `member`.
+- Protected roles cannot be deleted; system roles cannot be renamed.
+- `superadmin` cannot be stripped down to zero permissions.
+- User-role sync protects against:
+  - removing `superadmin` from the **last superadmin**,
+  - removing your own superadmin role.
+- Permissions are grouped into UI-friendly modules by prefix, such as `dashboard`, `membership`, `member`, `committee`, `position`, `hierarchy`, `post`, `notice`, `self`, `profile`, `report`, and `role`.
+- The admin menu is not static for all admins; `AdminMenuService` builds a base tree and removes nodes the user lacks permission to see.
 
-Report endpoints:
+## Module 12: Dashboard and reports
 
-- `GET /api/v1/reports/overview`
-- `GET /api/v1/reports/membership-applications`
-- `GET /api/v1/reports/members`
-- `GET /api/v1/reports/committees`
-- `GET /api/v1/reports/committee-assignments`
-- `GET /api/v1/reports/reporting-hierarchy`
-- `GET /api/v1/reports/posts`
-- `GET /api/v1/reports/notices`
-- `GET /api/v1/reports/profile-update-requests`
-- `GET /api/v1/reports/activity-summary`
+**Key files**
 
-Behavior:
+- `app/Http/Controllers/DashboardController.php`
+- `app/Http/Controllers/ReportController.php`
+- `app/Services/DashboardService.php`
+- `app/Services/ActivityFeedService.php`
+- `app/Services/AnalyticsService.php`
+- `app/Services/ReportService.php`
 
-- Admin menu is role-aware.
-- Roles and permissions are handled through Spatie Permission models and policies.
-- Dashboard endpoints are segmented by audience and aggregation type.
-- Reports are permission-gated individually.
+**Endpoints**
 
-Observations:
+- Dashboard:
+  - `GET /api/v1/dashboard`
+  - `GET /api/v1/dashboard/superadmin`
+  - `GET /api/v1/dashboard/admin`
+  - `GET /api/v1/dashboard/member`
+  - `GET /api/v1/dashboard/stats`
+  - `GET /api/v1/dashboard/charts`
+  - `GET /api/v1/dashboard/recent-activities`
+  - `GET /api/v1/dashboard/pending-items`
+  - `GET /api/v1/dashboard/latest-content`
+- Reports:
+  - `GET /api/v1/reports/overview`
+  - `GET /api/v1/reports/membership-applications`
+  - `GET /api/v1/reports/members`
+  - `GET /api/v1/reports/committees`
+  - `GET /api/v1/reports/committee-assignments`
+  - `GET /api/v1/reports/reporting-hierarchy`
+  - `GET /api/v1/reports/posts`
+  - `GET /api/v1/reports/notices`
+  - `GET /api/v1/reports/profile-update-requests`
+  - `GET /api/v1/reports/activity-summary`
 
-- This module turns the backend into a real admin platform, not only an operational API.
+**Business logic**
 
-## Architecture Notes
+- Dashboard payloads are **role-shaped**:
+  - admin/superadmin get aggregate cards, pending items, recent activity, latest content, and quick links,
+  - members get personalized cards and pending items.
+- Admin cards are cached for **5 minutes**; member cards are intentionally not cached because they are personalized.
+- Pending items encode operational queue logic, such as pending membership applications, pending profile requests, expiring notices, and content waiting for review.
+- Chart endpoints are admin-only and use `AnalyticsService` to build trend datasets.
+- Report endpoints are permission-gated individually, not by one broad “reports” check.
+- `ReportService` returns a consistent structure across modules:
+  - `filters`,
+  - `summary`,
+  - `groups`,
+  - `items`,
+  - `meta`.
+- Reports use `DB::table()` aggregation for leaner payload generation and cover the same main business domains as the API.
 
-Strengths:
+## Practical architecture summary
 
-- Controllers are mostly thin.
-- Services hold business logic.
-- Resource classes shape responses cleanly.
-- Request classes centralize validation.
-- Policies are registered centrally.
-- Exceptions are normalized to JSON for API calls.
-
-Patterns used:
-
-- Soft delete + restore in many admin modules
-- Summary endpoints for quick metrics
-- Paginated list endpoints with `meta`
-- Explicit status transition endpoints
-- Separate public/member/admin route spaces
-
-## Risks and Improvement Areas
-
-1. Authorization style is mixed.
-
-- Some controllers use policies with `$this->authorize(...)`.
-- Others use direct permission checks like `auth()->user()->can(...)`.
-- A more uniform approach would improve predictability.
-
-2. Docs and comments have minor naming drift.
-
-- Example: role summary route lives at `/admin/roles/summary`, while one docblock references `/admin/roles-summary`.
-
-3. Test coverage is limited relative to API size.
-
-- The codebase exposes `163` API routes.
-- Only a small set of feature tests currently exists.
-
-4. Test environment is not fully working in the current setup.
-
-- Running `php artisan test` failed because the SQLite driver is missing for the in-memory test database.
-
-5. Some status-heavy modules deserve stronger contract tests.
-
-- Membership applications
-- assignments and transfers
-- reporting hierarchy
-- content publishing workflow
-- self-service profile update approvals
-
-## Suggested Next Steps
-
-1. Add route/module coverage tests for the major admin modules not currently covered.
-2. Standardize authorization style across controllers.
-3. Fix minor documentation/comment mismatches.
-4. Make the test environment runnable by enabling the SQLite PDO driver or switching tests to a configured database.
-5. Add API contract examples for key frontend-facing endpoints.
-
-## Conclusion
-
-The API is well-structured, ambitious, and organized around real operational domains: onboarding, membership, committees, hierarchy, publishing, and administration. The architecture is strong enough for further growth, but the main gap is confidence at scale: the route surface is large, while automated verification is still comparatively thin and currently blocked in this environment by missing SQLite support.
+- The API is organized around a real operating model: **onboarding -> membership -> committee structure -> assignment -> reporting hierarchy -> content -> administration**.
+- The most important workflows are the ones with explicit state machines and audit history:
+  - membership applications,
+  - member status,
+  - committee status,
+  - positions active state,
+  - assignments and transfers,
+  - reporting relations,
+  - posts,
+  - notices,
+  - profile update requests.
+- The deepest business logic lives in:
+  - `MembershipApplicationService`,
+  - `CommitteeService`,
+  - `CommitteeMemberAssignmentService`,
+  - `MemberReportingRelationService`,
+  - `PostService`,
+  - `NoticeService`,
+  - `ProfileUpdateRequestService`.

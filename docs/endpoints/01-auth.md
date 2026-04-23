@@ -49,6 +49,7 @@ Requires `auth:sanctum` middleware.
 - **URL:** `/logout`
 - **Method:** `POST`
 - **Controller:** `AuthController@logout`
+- **Note:** Requires a current Sanctum API token for the request; tokenless Sanctum-authenticated requests now return a validation error instead of crashing.
 
 ### Logout All Sessions
 - **URL:** `/logout-all`

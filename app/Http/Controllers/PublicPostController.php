@@ -103,4 +103,28 @@ class PublicPostController extends Controller
             ]
         );
     }
+
+    public function campaigns(PublicPostListRequest $request): JsonResponse
+    {
+        $filters = [
+            ...$request->validated(),
+            'content_type' => PostContentType::Statement->value,
+            'sort_by' => $request->validated()['sort_by'] ?? 'published_at',
+            'sort_dir' => $request->validated()['sort_dir'] ?? 'desc',
+            'per_page' => $request->validated()['per_page'] ?? 12,
+        ];
+        $paginator = $this->service->listPublic($filters);
+
+        return $this->success(
+            PublicPostListResource::collection($paginator),
+            'Public campaign posts retrieved successfully.',
+            200,
+            [
+                'current_page' => $paginator->currentPage(),
+                'last_page' => $paginator->lastPage(),
+                'per_page' => $paginator->perPage(),
+                'total' => $paginator->total(),
+            ]
+        );
+    }
 }

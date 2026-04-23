@@ -87,6 +87,7 @@ Route::prefix('v1')->group(function () {
         Route::get('/featured-posts', [PublicPostController::class, 'featured']);
         Route::get('/news', [PublicPostController::class, 'news']);
         Route::get('/blogs', [PublicPostController::class, 'blogs']);
+        Route::get('/campaigns', [PublicPostController::class, 'campaigns']);
 
         // ── Module 09: Public Notices ───────────────────────────────────
         Route::get('/notices', [PublicNoticeController::class, 'index']);

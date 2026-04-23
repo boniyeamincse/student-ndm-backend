@@ -137,12 +137,12 @@ class MembershipApplicationService
         });
 
         // 6. Send password setup link (outside transaction — mail failure should not roll back DB)
-        $this->dispatchPasswordSetupLink($user);
+        $passwordLinkSent = $this->dispatchPasswordSetupLink($user);
 
         // 7. Send approval notification
-        $this->sendApprovalNotification($application, $member);
+        $notificationSent = $this->sendApprovalNotification($application, $member);
 
-        return [$user, $member];
+        return [$user, $member, $passwordLinkSent, $notificationSent];
     }
 
     // ─── Admin: Reject ────────────────────────────────────────────────────────
@@ -345,19 +345,25 @@ class MembershipApplicationService
 
     /**
      * Dispatch a password reset/setup link to the newly created user.
-     * Wrapped in try/catch — mail failure must not roll back the approval.
+     * Returns true on success, false on failure (failure is logged for admin visibility).
      */
-    private function dispatchPasswordSetupLink(User $user): void
+    private function dispatchPasswordSetupLink(User $user): bool
     {
         if (! $user->email) {
-            // Phone-only applicants cannot receive link via email — skip silently
-            return;
+            // Phone-only applicants cannot receive link via email
+            Log::warning('Password setup link skipped for user '.$user->id.': no email address. Manual onboarding required.');
+
+            return false;
         }
 
         try {
             Password::broker()->sendResetLink(['email' => $user->email]);
+
+            return true;
         } catch (\Throwable $e) {
             Log::error('Password setup link failed for user '.$user->id.': '.$e->getMessage());
+
+            return false;
         }
     }
 
@@ -383,28 +389,43 @@ class MembershipApplicationService
 
     /**
      * Generate unique application number: SMN-{YEAR}-{PADDED_SEQ}
+     *
+     * Uses a DB-level advisory lock pattern to prevent duplicate numbers
+     * under concurrent submissions.
      */
     private function generateApplicationNo(): string
     {
         $year = now()->year;
-        $last = MembershipApplication::withTrashed()
-            ->where('application_no', 'like', "SMN-{$year}-%")
-            ->count();
 
-        return sprintf('SMN-%d-%06d', $year, $last + 1);
+        return DB::transaction(function () use ($year): string {
+            // Lock all matching rows to serialize concurrent generators
+            $last = MembershipApplication::withTrashed()
+                ->where('application_no', 'like', "SMN-{$year}-%")
+                ->lockForUpdate()
+                ->count();
+
+            return sprintf('SMN-%d-%06d', $year, $last + 1);
+        });
     }
 
     /**
      * Generate unique member number: MEM-{YEAR}-{PADDED_SEQ}
+     *
+     * Uses a DB-level advisory lock pattern to prevent duplicate numbers
+     * under concurrent approvals.
      */
     private function generateMemberNo(): string
     {
         $year = now()->year;
-        $last = Member::withTrashed()
-            ->where('member_no', 'like', "MEM-{$year}-%")
-            ->count();
 
-        return sprintf('MEM-%d-%06d', $year, $last + 1);
+        return DB::transaction(function () use ($year): string {
+            $last = Member::withTrashed()
+                ->where('member_no', 'like', "MEM-{$year}-%")
+                ->lockForUpdate()
+                ->count();
+
+            return sprintf('MEM-%d-%06d', $year, $last + 1);
+        });
     }
 
     // ─── Notification helpers ─────────────────────────────────────────────────
@@ -431,17 +452,23 @@ class MembershipApplicationService
         }
     }
 
-    private function sendApprovalNotification(MembershipApplication $application, Member $member): void
+    private function sendApprovalNotification(MembershipApplication $application, Member $member): bool
     {
         if (! $application->email) {
-            return;
+            Log::warning("Approval notification skipped for application {$application->application_no}: no email address. Manual notification required.");
+
+            return false;
         }
 
         try {
             \Illuminate\Support\Facades\Notification::route('mail', $application->email)
                 ->notify(new ApplicationApprovedNotification($application, $member));
+
+            return true;
         } catch (\Throwable $e) {
             Log::error("Approval notification failed for application {$application->application_no}: ".$e->getMessage());
+
+            return false;
         }
     }
 }

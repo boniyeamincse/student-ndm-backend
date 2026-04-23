@@ -25,7 +25,17 @@ cp .env.example .env
 php artisan key:generate
 ```
 
-3. Configure database in `.env`, then run:
+3. Ensure the `pdo_sqlite` PHP extension is installed and enabled (required for the test suite's in-memory SQLite database):
+
+```bash
+# Ubuntu / Debian
+sudo apt-get install php-sqlite3
+
+# Verify:
+php -m | grep -i sqlite
+```
+
+4. Configure database in `.env`, then run:
 
 ```bash
 php artisan migrate --seed
@@ -245,6 +255,21 @@ All routes below are prefixed with `/api/v1`.
 	- `GET /admin/profile-update-requests/{id}`
 	- `PATCH /admin/profile-update-requests/{id}/approve`
 	- `PATCH /admin/profile-update-requests/{id}/reject`
+- Roles (superadmin only):
+	- `GET /admin/roles`
+	- `POST /admin/roles`
+	- `GET /admin/roles/summary`
+	- `GET /admin/roles/{role}`
+	- `PUT /admin/roles/{role}`
+	- `PATCH /admin/roles/{role}/permissions`
+	- `DELETE /admin/roles/{role}`
+- Permissions (superadmin only):
+	- `GET /admin/permissions`
+	- `GET /admin/permissions/grouped`
+	- `GET /admin/permissions/{permission}`
+- User management (superadmin only):
+	- `GET /admin/users/lookup`
+	- `PATCH /admin/users/{user}/roles`
 
 ### Dashboard and Reports (Authenticated)
 

@@ -131,18 +131,29 @@ class AdminMembershipApplicationController extends Controller
     {
         $application = MembershipApplication::findOrFail($id);
 
-        [, $member] = $this->service->approve(
+        [, $member, $passwordLinkSent, $notificationSent] = $this->service->approve(
             $application,
             $request->user(),
             $request->remarks,
         );
 
+        $warnings = [];
+        if (! $passwordLinkSent) {
+            $warnings[] = 'Password setup link could not be sent. Please send it manually or contact the applicant directly.';
+        }
+        if (! $notificationSent) {
+            $warnings[] = 'Approval notification could not be sent. Please notify the applicant through an alternative channel.';
+        }
+
         return $this->success(
             data: [
                 'application' => new MembershipApplicationResource($application->refresh()),
                 'member'      => new MemberResource($member),
+                'warnings'    => $warnings,
             ],
-            message: 'Application approved. Member account has been created and a password setup link has been sent.',
+            message: empty($warnings)
+                ? 'Application approved. Member account has been created and a password setup link has been sent.'
+                : 'Application approved. Member account has been created. See warnings for communication issues.',
         );
     }
 

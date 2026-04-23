@@ -33,6 +33,7 @@ class StorePositionRequest extends FormRequest
     {
         return [
             'name' => ['required', 'string', 'max:255'],
+            'name_bn' => ['nullable', 'string', 'max:255'],
             'slug' => ['required', 'string', 'max:255'],
             'code' => ['nullable', 'string', 'max:50'],
             'short_name' => ['nullable', 'string', 'max:50'],

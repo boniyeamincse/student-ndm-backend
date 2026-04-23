@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use App\Models\Committee;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
@@ -103,11 +104,9 @@ class MembershipApplication extends Model
         return $this->belongsTo(Member::class, 'reference_member_id');
     }
 
-    /** Placeholder relation for future committee module */
     public function desiredCommittee(): BelongsTo
     {
-        // TODO: replace target model when committee module is implemented
-        return $this->belongsTo(Member::class, 'desired_committee_id');
+        return $this->belongsTo(Committee::class, 'desired_committee_id');
     }
 
     public function statusHistories(): HasMany

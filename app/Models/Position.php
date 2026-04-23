@@ -19,6 +19,7 @@ class Position extends Model
     protected $fillable = [
         'uuid',
         'name',
+        'name_bn',
         'slug',
         'code',
         'short_name',

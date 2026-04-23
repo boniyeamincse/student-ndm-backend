@@ -274,7 +274,7 @@ class AdminMenuService
     {
         $role = $user->hasRole('superadmin') ? 'superadmin' : 'admin';
 
-        $filterNodes = function (array $nodes) use (&$filterNodes, $role): array {
+        $filterNodes = function (array $nodes) use (&$filterNodes, $role, $user): array {
             $filtered = [];
 
             foreach ($nodes as $node) {
@@ -282,6 +282,20 @@ class AdminMenuService
 
                 if (! in_array($role, $allowedRoles, true)) {
                     continue;
+                }
+
+                // Remove nodes the user lacks explicit permissions for
+                if (! empty($node['required_permissions'])) {
+                    $hasPermission = false;
+                    foreach ($node['required_permissions'] as $permission) {
+                        if ($user->hasPermissionTo($permission)) {
+                            $hasPermission = true;
+                            break;
+                        }
+                    }
+                    if (! $hasPermission) {
+                        continue;
+                    }
                 }
 
                 if (isset($node['children']) && is_array($node['children'])) {

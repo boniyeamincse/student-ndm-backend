@@ -48,11 +48,12 @@ class RequiredPoliticalPositionsSeeder extends Seeder
             Position::updateOrCreate(
                 ['name' => $item['name']],
                 [
+                    'name_bn' => $item['bn_label'],
                     'code' => $item['code'],
                     'short_name' => $item['short_name'],
                     'hierarchy_rank' => $item['hierarchy_rank'],
                     'display_order' => $item['display_order'],
-                    'description' => 'বাংলা: '.$item['bn_label'],
+                    'description' => $item['bn_label'],
                     'category' => $item['category'],
                     'scope' => PositionScope::CommitteeSpecific->value,
                     'is_leadership' => $item['is_leadership'],

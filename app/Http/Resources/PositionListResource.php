@@ -13,6 +13,7 @@ class PositionListResource extends JsonResource
             'id' => $this->id,
             'uuid' => $this->uuid,
             'name' => $this->name,
+            'name_bn' => $this->name_bn,
             'slug' => $this->slug,
             'code' => $this->code,
             'short_name' => $this->short_name,

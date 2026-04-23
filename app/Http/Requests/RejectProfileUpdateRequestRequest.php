@@ -18,4 +18,13 @@ class RejectProfileUpdateRequestRequest extends FormRequest
             'note' => ['nullable', 'string', 'max:2000'],
         ];
     }
+
+    protected function prepareForValidation(): void
+    {
+        if (! $this->filled('note') && $this->filled('review_note')) {
+            $this->merge([
+                'note' => $this->input('review_note'),
+            ]);
+        }
+    }
 }

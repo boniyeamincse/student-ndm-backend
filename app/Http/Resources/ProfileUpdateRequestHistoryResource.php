@@ -9,15 +9,18 @@ class ProfileUpdateRequestHistoryResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
+        $changedByUser = $this->whenLoaded('changedByUser', fn () => [
+            'id' => $this->changedByUser?->id,
+            'name' => $this->changedByUser?->name,
+            'email' => $this->changedByUser?->email,
+        ]);
+
         return [
             'id' => $this->id,
             'old_status' => $this->old_status?->value,
             'new_status' => $this->new_status?->value,
-            'changed_by' => $this->whenLoaded('changedByUser', fn () => [
-                'id' => $this->changedByUser?->id,
-                'name' => $this->changedByUser?->name,
-                'email' => $this->changedByUser?->email,
-            ]),
+            'changed_by' => $changedByUser,
+            'changed_by_user' => $changedByUser,
             'note' => $this->note,
             'created_at' => $this->created_at?->toDateTimeString(),
         ];

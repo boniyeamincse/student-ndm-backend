@@ -190,6 +190,8 @@ class ReportService
     {
         $query = DB::table('committees as c')
             ->leftJoin('committee_types as ct', 'ct.id', '=', 'c.committee_type_id')
+            ->leftJoin('divisions as d', 'd.id', '=', 'c.division_id')
+            ->leftJoin('districts as ds', 'ds.id', '=', 'c.district_id')
             ->leftJoin('committees as parent_committee', 'parent_committee.id', '=', 'c.parent_id')
             ->whereNull('c.deleted_at');
 
@@ -228,8 +230,8 @@ class ReportService
         $groups = [
             'by_type'     => $this->groupByCol($query, 'ct.name'),
             'by_status'   => $this->groupByCol($query, 'c.status'),
-            'by_division' => $this->groupByCol($query, 'c.division_id'),
-            'by_district' => $this->groupByCol($query, 'c.district_id'),
+            'by_division' => $this->groupByCol($query, 'd.name_en'),
+            'by_district' => $this->groupByCol($query, 'ds.name_en'),
         ];
 
         $sortBy  = in_array($filters['sort_by'] ?? '', ['created_at', 'status', 'name'])
@@ -249,6 +251,8 @@ class ReportService
                 'c.is_current',
                 'c.division_id',
                 'c.district_id',
+                'd.name_en as division_name',
+                'ds.name_en as district_name',
                 'c.start_date',
                 'c.end_date',
                 'c.parent_id',

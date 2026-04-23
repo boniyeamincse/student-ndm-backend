@@ -36,6 +36,7 @@ class PostListResource extends JsonResource
             'visibility' => $this->visibility?->value,
             'is_featured' => $this->is_featured,
             'allow_on_homepage' => $this->allow_on_homepage,
+            'show_in_campaigns' => $this->show_in_campaigns,
             'published_at' => $this->published_at?->toDateTimeString(),
             'created_at' => $this->created_at?->toDateTimeString(),
             'featured_image_url' => $this->featured_image_url,

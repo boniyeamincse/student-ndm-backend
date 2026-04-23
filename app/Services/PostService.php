@@ -40,7 +40,7 @@ class PostService
             }
         }
 
-        foreach (['is_featured', 'allow_on_homepage'] as $field) {
+        foreach (['is_featured', 'allow_on_homepage', 'show_in_campaigns'] as $field) {
             if (array_key_exists($field, $filters) && $filters[$field] !== null) {
                 $query->where($field, (bool) $filters[$field]);
             }
@@ -337,6 +337,10 @@ class PostService
 
         if ($filters['featured_only'] ?? false) {
             $query->where('is_featured', true);
+        }
+
+        if (array_key_exists('show_in_campaigns', $filters) && $filters['show_in_campaigns'] !== null) {
+            $query->where('show_in_campaigns', (bool) $filters['show_in_campaigns']);
         }
 
         $sortBy = $filters['sort_by'] ?? 'published_at';

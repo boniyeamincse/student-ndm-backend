@@ -26,6 +26,9 @@ class StorePostRequest extends FormRequest
         if (! $this->has('allow_on_homepage')) {
             $this->merge(['allow_on_homepage' => false]);
         }
+        if (! $this->has('show_in_campaigns')) {
+            $this->merge(['show_in_campaigns' => false]);
+        }
     }
 
     public function rules(): array
@@ -48,6 +51,7 @@ class StorePostRequest extends FormRequest
             'visibility' => ['required', new Enum(PostVisibility::class)],
             'is_featured' => ['nullable', 'boolean'],
             'allow_on_homepage' => ['nullable', 'boolean'],
+            'show_in_campaigns' => ['nullable', 'boolean'],
             'published_at' => ['nullable', 'date'],
             'scheduled_at' => ['nullable', 'date'],
             'meta_title' => ['nullable', 'string', 'max:255'],

@@ -108,7 +108,7 @@ class PublicPostController extends Controller
     {
         $filters = [
             ...$request->validated(),
-            'content_type' => PostContentType::Statement->value,
+            'show_in_campaigns' => true,
             'sort_by' => $request->validated()['sort_by'] ?? 'published_at',
             'sort_dir' => $request->validated()['sort_dir'] ?? 'desc',
             'per_page' => $request->validated()['per_page'] ?? 12,

@@ -22,6 +22,7 @@ class PublicPostListRequest extends FormRequest
             'category_slug' => ['nullable', 'string', 'max:255'],
             'committee_id' => ['nullable', 'integer', 'exists:committees,id'],
             'featured_only' => ['nullable', 'boolean'],
+            'show_in_campaigns' => ['nullable', 'boolean'],
             'sort_by' => ['nullable', 'in:published_at,title'],
             'sort_dir' => ['nullable', 'in:asc,desc'],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],

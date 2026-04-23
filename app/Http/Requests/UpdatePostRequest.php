@@ -36,6 +36,7 @@ class UpdatePostRequest extends FormRequest
             'visibility' => ['sometimes', new Enum(PostVisibility::class)],
             'is_featured' => ['nullable', 'boolean'],
             'allow_on_homepage' => ['nullable', 'boolean'],
+            'show_in_campaigns' => ['nullable', 'boolean'],
             'scheduled_at' => ['nullable', 'date'],
             'meta_title' => ['nullable', 'string', 'max:255'],
             'meta_description' => ['nullable', 'string'],

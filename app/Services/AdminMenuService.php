@@ -192,17 +192,40 @@ class AdminMenuService
                 'collapsible' => true,
                 'items' => [
                     [
-                        'key' => 'reports',
-                        'label' => 'Reports',
+                        'key' => 'executive-reports',
+                        'label' => 'Executive Reports',
                         'icon' => 'chart-column',
                         'children' => [
-                            ['key' => 'overview-report', 'label' => 'Overview Report', 'path' => '/admin/reports/overview', 'required_permissions' => ['report.view']],
-                            ['key' => 'membership-report', 'label' => 'Membership Report', 'path' => '/admin/reports/membership-applications', 'required_permissions' => ['report.membership.view']],
-                            ['key' => 'committee-report', 'label' => 'Committee Report', 'path' => '/admin/reports/committees', 'required_permissions' => ['report.committees.view']],
-                            ['key' => 'assignment-report', 'label' => 'Assignment Report', 'path' => '/admin/reports/committee-assignments', 'required_permissions' => ['report.assignments.view']],
-                            ['key' => 'content-report', 'label' => 'Content Report', 'path' => '/admin/reports/posts', 'required_permissions' => ['report.posts.view']],
-                            ['key' => 'notice-report', 'label' => 'Notice Report', 'path' => '/admin/reports/notices', 'required_permissions' => ['report.notices.view']],
-                            ['key' => 'activity-report', 'label' => 'Activity Report', 'path' => '/admin/reports/activity-summary', 'required_permissions' => ['report.activity.view']],
+                            ['key' => 'overview-report', 'label' => 'Executive Overview', 'path' => '/admin/reports/overview', 'required_permissions' => ['report.view']],
+                            ['key' => 'division-performance-summary', 'label' => 'Division Performance Summary', 'path' => '/admin/reports/committees-divisionwise', 'required_permissions' => ['report.committees.view']],
+                        ],
+                    ],
+                    [
+                        'key' => 'organization-reports',
+                        'label' => 'Membership & Organization',
+                        'icon' => 'chart-column',
+                        'children' => [
+                            ['key' => 'membership-report', 'label' => 'Membership Pipeline', 'path' => '/admin/reports/membership-applications', 'required_permissions' => ['report.membership.view']],
+                            ['key' => 'committee-report', 'label' => 'Committee Operations', 'path' => '/admin/reports/committees', 'required_permissions' => ['report.committees.view']],
+                            ['key' => 'district-committee-coverage', 'label' => 'District Committee Coverage', 'path' => '/admin/reports/committees-districtwise', 'required_permissions' => ['report.committees.view']],
+                            ['key' => 'assignment-report', 'label' => 'Assignment Coverage', 'path' => '/admin/reports/committee-assignments', 'required_permissions' => ['report.assignments.view']],
+                        ],
+                    ],
+                    [
+                        'key' => 'communication-reports',
+                        'label' => 'Communication Reports',
+                        'icon' => 'chart-column',
+                        'children' => [
+                            ['key' => 'content-report', 'label' => 'Content Publishing', 'path' => '/admin/reports/posts', 'required_permissions' => ['report.posts.view']],
+                            ['key' => 'notice-report', 'label' => 'Notice Communications', 'path' => '/admin/reports/notices', 'required_permissions' => ['report.notices.view']],
+                        ],
+                    ],
+                    [
+                        'key' => 'operations-audit-reports',
+                        'label' => 'Operations & Audit',
+                        'icon' => 'chart-column',
+                        'children' => [
+                            ['key' => 'activity-report', 'label' => 'Activity Audit Trail', 'path' => '/admin/reports/activity-summary', 'required_permissions' => ['report.activity.view']],
                         ],
                     ],
                     [

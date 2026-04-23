@@ -30,40 +30,41 @@ class ReportService
 
     public function membershipApplicationsReport(array $filters): array
     {
-        $query = DB::table('membership_applications')
+        $query = DB::table('membership_applications as ma')
+            ->leftJoin('users as reviewer_user', 'reviewer_user.id', '=', 'ma.reviewed_by')
             ->whereNull('deleted_at');
 
         if ($status = $filters['status'] ?? null) {
-            $query->where('status', $status);
+            $query->where('ma.status', $status);
         }
         if ($division = $filters['division_id'] ?? null) {
-            $query->where('division_id', $division);
+            $query->where('ma.division_id', $division);
         }
         if ($district = $filters['district_id'] ?? null) {
-            $query->where('district_id', $district);
+            $query->where('ma.district_id', $district);
         }
         if ($source = $filters['source'] ?? null) {
-            $query->where('source', $source);
+            $query->where('ma.source', $source);
         }
         if ($reviewer = $filters['reviewer_id'] ?? null) {
-            $query->where('reviewed_by', $reviewer);
+            $query->where('ma.reviewed_by', $reviewer);
         }
         if ($approver = $filters['approved_by'] ?? null) {
-            $query->where('approved_by', $approver);
+            $query->where('ma.approved_by', $approver);
         }
 
-        $this->applyDateRange($query, 'created_at', $filters);
+        $this->applyDateRange($query, 'ma.created_at', $filters);
 
         $total = (clone $query)->count();
 
         // Summary counts
         $summary = [
             'total'        => $total,
-            'pending'      => (clone $query)->where('status', 'pending')->count(),
-            'under_review' => (clone $query)->where('status', 'under_review')->count(),
-            'approved'     => (clone $query)->where('status', 'approved')->count(),
-            'rejected'     => (clone $query)->where('status', 'rejected')->count(),
-            'on_hold'      => (clone $query)->where('status', 'on_hold')->count(),
+            'pending'      => (clone $query)->where('ma.status', 'pending')->count(),
+            'under_review' => (clone $query)->where('ma.status', 'under_review')->count(),
+            'approved'     => (clone $query)->where('ma.status', 'approved')->count(),
+            'rejected'     => (clone $query)->where('ma.status', 'rejected')->count(),
+            'on_hold'      => (clone $query)->where('ma.status', 'on_hold')->count(),
         ];
 
         $summary['approval_ratio'] = $summary['total'] > 0
@@ -72,21 +73,34 @@ class ReportService
 
         // Groups
         $groups = [
-            'by_division' => $this->groupByCol($query, 'division_id'),
-            'by_district' => $this->groupByCol($query, 'district_id'),
-            'by_status'   => $this->groupByCol($query, 'status'),
+            'by_division' => $this->groupByCol($query, 'ma.division_id'),
+            'by_district' => $this->groupByCol($query, 'ma.district_id'),
+            'by_status'   => $this->groupByCol($query, 'ma.status'),
         ];
 
         // Paginated items
         $sortBy  = in_array($filters['sort_by'] ?? '', ['created_at', 'status', 'division_id', 'district_id'])
-            ? $filters['sort_by']
-            : 'created_at';
+            ? 'ma.' . $filters['sort_by']
+            : 'ma.created_at';
         $sortDir = ($filters['sort_dir'] ?? 'desc') === 'asc' ? 'asc' : 'desc';
         $perPage = (int) ($filters['per_page'] ?? 20);
 
         $paginator = $query
             ->orderBy($sortBy, $sortDir)
-            ->paginate($perPage, ['id', 'application_no', 'full_name', 'status', 'division_id', 'district_id', 'created_at']);
+            ->paginate($perPage, [
+                'ma.id',
+                'ma.application_no',
+                'ma.full_name',
+                'ma.mobile',
+                'ma.status',
+                'ma.source',
+                'ma.division_id',
+                'ma.district_id',
+                'reviewer_user.name as reviewed_by',
+                'ma.approved_at',
+                'ma.rejected_at',
+                'ma.created_at',
+            ]);
 
         return [
             'filters' => $filters,
@@ -176,6 +190,7 @@ class ReportService
     {
         $query = DB::table('committees as c')
             ->leftJoin('committee_types as ct', 'ct.id', '=', 'c.committee_type_id')
+            ->leftJoin('committees as parent_committee', 'parent_committee.id', '=', 'c.parent_id')
             ->whereNull('c.deleted_at');
 
         if ($typeId = $filters['committee_type_id'] ?? null) {
@@ -225,7 +240,21 @@ class ReportService
 
         $paginator = $query
             ->orderBy($sortBy, $sortDir)
-            ->paginate($perPage, ['c.id', 'c.committee_no', 'c.name', 'ct.name as committee_type', 'c.status', 'c.is_current', 'c.division_id', 'c.district_id', 'c.created_at']);
+            ->paginate($perPage, [
+                'c.id',
+                'c.committee_no',
+                'c.name',
+                'ct.name as committee_type',
+                'c.status',
+                'c.is_current',
+                'c.division_id',
+                'c.district_id',
+                'c.start_date',
+                'c.end_date',
+                'c.parent_id',
+                'parent_committee.name as parent_name',
+                'c.created_at',
+            ]);
 
         return [
             'filters' => $filters,
@@ -303,8 +332,8 @@ class ReportService
             ->paginate($perPage, [
                 'cma.id', 'cma.assignment_no', 'm.full_name as member_name',
                 'c.name as committee_name', 'p.title as position_title',
-                'cma.assignment_type', 'cma.is_leadership', 'cma.is_active',
-                'cma.status', 'cma.created_at',
+                'cma.assignment_type', 'cma.is_primary', 'cma.is_leadership', 'cma.is_active',
+                'cma.status', 'cma.start_date', 'cma.end_date', 'cma.created_at',
             ]);
 
         return [
@@ -379,6 +408,7 @@ class ReportService
     {
         $query = DB::table('posts as p')
             ->leftJoin('post_categories as pc', 'pc.id', '=', 'p.post_category_id')
+            ->leftJoin('users as author_user', 'author_user.id', '=', 'p.author_id')
             ->whereNull('p.deleted_at');
 
         if ($type = $filters['content_type'] ?? null) {
@@ -432,6 +462,7 @@ class ReportService
         $paginator = $query->orderBy($sortBy, $sortDir)
             ->paginate($perPage, [
                 'p.id', 'p.post_no', 'p.title', 'p.content_type', 'p.status',
+                'pc.name as category_name', 'author_user.name as author_name',
                 'p.visibility', 'p.is_featured', 'p.published_at', 'p.view_count', 'p.created_at',
             ]);
 
@@ -509,7 +540,7 @@ class ReportService
         $paginator = $query->orderBy($sortBy, $sortDir)
             ->paginate($perPage, [
                 'id', 'notice_no', 'title', 'notice_type', 'priority', 'status',
-                'visibility', 'is_pinned', 'publish_at', 'expires_at', 'created_at',
+                'visibility', 'audience_type', 'is_pinned', 'publish_at', 'expires_at', 'created_at',
             ]);
 
         return [

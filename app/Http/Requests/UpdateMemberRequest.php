@@ -38,6 +38,10 @@ class UpdateMemberRequest extends FormRequest
             'upazila_id' => ['nullable', 'integer', 'exists:upazilas,id'],
             'district_id' => ['nullable', 'integer', 'exists:districts,id'],
             'division_id' => ['nullable', 'integer', 'exists:divisions,id'],
+            'union_name' => ['nullable', 'string', 'max:100'],
+            'upazila_name' => ['nullable', 'string', 'max:100'],
+            'district_name' => ['nullable', 'string', 'max:100'],
+            'division_name' => ['nullable', 'string', 'max:100'],
             'emergency_contact_name'  => ['nullable', 'string', 'max:150'],
             'emergency_contact_phone' => ['nullable', 'string', 'max:20'],
         ];

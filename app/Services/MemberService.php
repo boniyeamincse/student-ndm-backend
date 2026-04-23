@@ -7,8 +7,12 @@ use App\Enum\UserStatus;
 use App\Http\Requests\MemberListRequest;
 use App\Http\Requests\UpdateMemberRequest;
 use App\Http\Requests\UpdateMemberStatusRequest;
+use App\Models\District;
+use App\Models\Division;
 use App\Models\Member;
 use App\Models\MemberStatusHistory;
+use App\Models\Union;
+use App\Models\Upazila;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -19,7 +23,21 @@ class MemberService
 
     public function list(MemberListRequest $request): LengthAwarePaginator
     {
-        $query = Member::query();
+        $query = Member::query()->with([
+            'division:id,name_en,name_bn',
+            'district:id,name_en,name_bn',
+            'upazila:id,name_en,name_bn',
+            'union:id,name_en,name_bn',
+            'user:id,status',
+            'committeeAssignments' => fn ($q) => $q
+                ->where('is_active', true)
+                ->orderByDesc('is_primary')
+                ->orderByDesc('id')
+                ->with([
+                    'committee:id,name',
+                    'position:id,name',
+                ]),
+        ]);
 
         if ($search = $request->input('search')) {
             $query->where(function ($q) use ($search) {
@@ -33,7 +51,7 @@ class MemberService
         if ($status = $request->input('status')) {
             $query->where('status', $status);
         }
-        
+
         if ($request->has('promoted')) {
             $query->where('is_promoted', $request->boolean('promoted'));
         }
@@ -46,16 +64,64 @@ class MemberService
             $query->where('gender', $gender);
         }
 
+        if ($institution = $request->input('educational_institution')) {
+            $query->where('educational_institution', 'like', "%{$institution}%");
+        }
+
         if ($divisionId = $request->input('division_id')) {
             $query->where('division_id', $divisionId);
+        }
+
+        if ($division = $request->input('division')) {
+            $query->whereHas('division', function ($q) use ($division) {
+                $q->where('name_en', 'like', "%{$division}%")
+                    ->orWhere('name_bn', 'like', "%{$division}%");
+            });
         }
 
         if ($districtId = $request->input('district_id')) {
             $query->where('district_id', $districtId);
         }
 
+        if ($district = $request->input('district')) {
+            $query->whereHas('district', function ($q) use ($district) {
+                $q->where('name_en', 'like', "%{$district}%")
+                    ->orWhere('name_bn', 'like', "%{$district}%");
+            });
+        }
+
         if ($upazilaId = $request->input('upazila_id')) {
             $query->where('upazila_id', $upazilaId);
+        }
+
+        if ($upazila = $request->input('upazila')) {
+            $query->whereHas('upazila', function ($q) use ($upazila) {
+                $q->where('name_en', 'like', "%{$upazila}%")
+                    ->orWhere('name_bn', 'like', "%{$upazila}%");
+            });
+        }
+
+        if ($unionId = $request->input('union_id')) {
+            $query->where('union_id', $unionId);
+        }
+
+        if ($unionName = $request->input('union_name')) {
+            $query->whereHas('union', function ($q) use ($unionName) {
+                $q->where('name_en', 'like', "%{$unionName}%")
+                    ->orWhere('name_bn', 'like', "%{$unionName}%");
+            });
+        }
+
+        if ($joinedFrom = $request->input('joined_from')) {
+            $query->whereDate('joined_at', '>=', $joinedFrom);
+        }
+
+        if ($joinedTo = $request->input('joined_to')) {
+            $query->whereDate('joined_at', '<=', $joinedTo);
+        }
+
+        if ($recentPeriodDays = $request->input('recent_period_days')) {
+            $query->where('joined_at', '>=', now()->subDays((int) $recentPeriodDays));
         }
 
         $sortBy  = $request->input('sort_by', 'created_at');
@@ -75,6 +141,10 @@ class MemberService
             'statusHistories.changedByUser',
             'user',
             'application',
+            'division:id,name_en,name_bn',
+            'district:id,name_en,name_bn',
+            'upazila:id,name_en,name_bn',
+            'union:id,name_en,name_bn',
             'committeeAssignments.committee',
             'committeeAssignments.position',
         ])->findOrFail($id);
@@ -84,7 +154,15 @@ class MemberService
 
     public function update(Member $member, UpdateMemberRequest $request, int $adminId): Member
     {
-        $data = $request->safe()->except(['photo']);
+        $data = $request->safe()->except([
+            'photo',
+            'division_name',
+            'district_name',
+            'upazila_name',
+            'union_name',
+        ]);
+
+        $this->applyGeoNamesToIds($request, $data);
 
         if ($request->hasFile('photo')) {
             // Remove old photo if it exists and is stored locally
@@ -112,7 +190,14 @@ class MemberService
             }
         }
 
-        return $member->fresh(['statusHistories.changedByUser', 'user']);
+        return $member->fresh([
+            'statusHistories.changedByUser',
+            'user',
+            'division',
+            'district',
+            'upazila',
+            'union',
+        ]);
     }
 
     // ─── Status update ────────────────────────────────────────────────────────
@@ -191,5 +276,40 @@ class MemberService
         }
 
         return $summary;
+    }
+
+    private function applyGeoNamesToIds(UpdateMemberRequest $request, array &$data): void
+    {
+        if (empty($data['division_id']) && $request->filled('division_name')) {
+            $name = trim((string) $request->input('division_name'));
+            $data['division_id'] = Division::query()
+                ->where('name_en', $name)
+                ->orWhere('name_bn', $name)
+                ->value('id');
+        }
+
+        if (empty($data['district_id']) && $request->filled('district_name')) {
+            $name = trim((string) $request->input('district_name'));
+            $data['district_id'] = District::query()
+                ->where('name_en', $name)
+                ->orWhere('name_bn', $name)
+                ->value('id');
+        }
+
+        if (empty($data['upazila_id']) && $request->filled('upazila_name')) {
+            $name = trim((string) $request->input('upazila_name'));
+            $data['upazila_id'] = Upazila::query()
+                ->where('name_en', $name)
+                ->orWhere('name_bn', $name)
+                ->value('id');
+        }
+
+        if (empty($data['union_id']) && $request->filled('union_name')) {
+            $name = trim((string) $request->input('union_name'));
+            $data['union_id'] = Union::query()
+                ->where('name_en', $name)
+                ->orWhere('name_bn', $name)
+                ->value('id');
+        }
     }
 }
